@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Market Scout</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0f; --surface: #111118; --border: #1e1e2e;
+      --accent: #e8ff47; --accent-dim: #b8cc2a;
+      --red: #ff4d4d; --yellow: #ffc145; --green: #47ff8a;
+      --text: #e8e8f0; --muted: #6b6b80;
+      --mono: 'DM Mono', monospace;
+      --display: 'Syne', sans-serif;
+      --body: 'DM Sans', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--body); min-height: 100vh; }
+
+    header { border-bottom: 1px solid var(--border); padding: 24px 40px; display: flex; align-items: center; gap: 16px; background: var(--surface); }
+    .logo-mark { width: 36px; height: 36px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-weight: 800; font-size: 18px; color: #0a0a0f; }
+    header h1 { font-family: var(--display); font-size: 20px; font-weight: 800; }
+    header span { font-family: var(--mono); font-size: 11px; color: var(--muted); background: var(--border); padding: 3px 8px; border-radius: 4px; margin-left: 4px; }
+
+    .layout { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 73px); }
+
+    .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 32px 24px; display: flex; flex-direction: column; gap: 24px; }
+    .sidebar-label { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+
+    .input-group { display: flex; gap: 8px; }
+    .input-group input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: var(--mono); font-size: 13px; outline: none; transition: border-color 0.2s; }
+    .input-group input:focus { border-color: var(--accent); }
+    .input-group input::placeholder { color: var(--muted); }
+
+    .btn-add { background: var(--accent); color: #0a0a0f; border: none; border-radius: 8px; padding: 10px 14px; font-family: var(--display); font-weight: 700; font-size: 14px; cursor: pointer; }
+    .btn-add:hover { background: var(--accent-dim); }
+
+    .city-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+    .city-tag { display: flex; align-items: center; justify-content: space-between; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-family: var(--mono); font-size: 13px; }
+    .city-tag button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+    .city-tag button:hover { color: var(--red); }
+    .empty-state { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: center; padding: 20px 0; }
+
+    .btn-run { background: var(--accent); color: #0a0a0f; border: none; border-radius: 10px; padding: 14px; font-family: var(--display); font-weight: 800; font-size: 15px; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-run:hover:not(:disabled) { background: var(--accent-dim); }
+    .btn-run:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-run .spinner { width: 16px; height: 16px; border: 2px solid rgba(0,0,0,0.3); border-top-color: #0a0a0f; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+    .btn-run.loading .spinner { display: block; }
+    .btn-run.loading .run-label { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-clear { background: none; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 10px; font-family: var(--mono); font-size: 12px; cursor: pointer; width: 100%; }
+    .btn-clear:hover { border-color: var(--red); color: var(--red); }
+
+    .main { padding: 32px 40px; display: flex; flex-direction: column; gap: 24px; }
+
+    .status-log { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; font-family: var(--mono); font-size: 12px; color: var(--muted); min-height: 60px; display: none; }
+    .status-log.visible { display: block; }
+    .log-line { line-height: 1.8; }
+    .log-line.ok { color: var(--green); }
+    .log-line.warn { color: var(--yellow); }
+
+    .results-section { display: none; }
+    .results-section.visible { display: block; }
+    .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .results-title { font-family: var(--display); font-size: 18px; font-weight: 800; }
+    .btn-export { background: none; border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 16px; font-family: var(--mono); font-size: 12px; cursor: pointer; }
+    .btn-export:hover { border-color: var(--accent); color: var(--accent); }
+
+    .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead tr { background: var(--surface); border-bottom: 1px solid var(--border); }
+    th { padding: 12px 16px; text-align: left; font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.02); }
+    td { padding: 14px 16px; font-family: var(--mono); font-size: 13px; white-space: nowrap; }
+    td.city-name { font-family: var(--body); font-weight: 500; font-size: 14px; }
+
+    .score-badge { display: inline-flex; align-items: center; gap: 8px; }
+    .score-num { font-family: var(--display); font-size: 18px; font-weight: 800; }
+    .score-bar-wrap { width: 60px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .score-bar { height: 100%; border-radius: 2px; }
+    .score-green { color: var(--green); } .score-green .score-bar { background: var(--green); }
+    .score-yellow { color: var(--yellow); } .score-yellow .score-bar { background: var(--yellow); }
+    .score-red { color: var(--red); } .score-red .score-bar { background: var(--red); }
+    .score-na { color: var(--muted); }
+
+    .label-pill { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-family: var(--mono); }
+    .pill-green { background: rgba(71,255,138,0.1); color: var(--green); }
+    .pill-yellow { background: rgba(255,193,69,0.1); color: var(--yellow); }
+    .pill-red { background: rgba(255,77,77,0.1); color: var(--red); }
+    .pill-na { background: var(--border); color: var(--muted); }
+
+    .stale-flag { color: var(--yellow); font-size: 10px; margin-left: 4px; }
+    .dom-warn { color: var(--red); }
+    .svl-pos { color: var(--green); }
+    .svl-neg { color: var(--red); }
+    .svl-na { color: var(--muted); }
+
+    .placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 40px; text-align: center; gap: 12px; border: 1px dashed var(--border); border-radius: 12px; }
+    .placeholder-icon { font-size: 40px; opacity: 0.3; }
+    .placeholder h3 { font-family: var(--display); font-size: 18px; color: var(--muted); }
+    .placeholder p { font-family: var(--mono); font-size: 12px; color: var(--muted); opacity: 0.6; }
+    .error-row td { color: var(--muted); font-style: italic; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">M</div>
+  <h1>Market Scout <span>Redfin Compete Score + PAR</span></h1>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div>
+      <div class="sidebar-label" style="margin-bottom:12px">Add Markets</div>
+      <div class="input-group">
+        <input type="text" id="cityInput" placeholder="Atlanta, GA" maxlength="60" />
+        <button class="btn-add" id="addBtn">+ Add</button>
+      </div>
+      <div style="margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--muted)">Format: City, ST</div>
+    </div>
+    <div>
+      <div class="sidebar-label" style="margin-bottom:12px">Markets <span id="cityCount" style="color:var(--text)">0</span></div>
+      <div class="city-list" id="cityList">
+        <div class="empty-state">No cities added yet</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:auto">
+      <button class="btn-run" id="runBtn" disabled>
+        <div class="spinner"></div>
+        <span class="run-label">Run Analysis</span>
+      </button>
+      <button class="btn-clear" id="clearBtn">Clear All</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="status-log" id="statusLog"></div>
+    <div class="placeholder" id="placeholder">
+      <div class="placeholder-icon">📍</div>
+      <h3>No markets analyzed yet</h3>
+      <p>Add cities on the left and click Run Analysis</p>
+    </div>
+    <div class="results-section" id="resultsSection">
+      <div class="results-header">
+        <div class="results-title">Results</div>
+        <button class="btn-export" id="exportBtn">Download CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>City</th>
+              <th>Score</th>
+              <th>Label</th>
+              <th>Median Sale</th>
+              <th>Avg DOM</th>
+              <th>Hot Homes</th>
+              <th>Sale vs List</th>
+              <th>Months Supply</th>
+              <th>Market Type</th>
+              <th>Data Date</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function() {
+  var cities = [];
+  var results = [];
+
+  var cityInput     = document.getElementById('cityInput');
+  var cityList      = document.getElementById('cityList');
+  var cityCount     = document.getElementById('cityCount');
+  var runBtn        = document.getElementById('runBtn');
+  var clearBtn      = document.getElementById('clearBtn');
+  var addBtn        = document.getElementById('addBtn');
+  var exportBtn     = document.getElementById('exportBtn');
+  var statusLog     = document.getElementById('statusLog');
+  var placeholder   = document.getElementById('placeholder');
+  var resultsSection= document.getElementById('resultsSection');
+  var resultsBody   = document.getElementById('resultsBody');
+
+  cityInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') addCity(); });
+  addBtn.addEventListener('click', addCity);
+  clearBtn.addEventListener('click', clearAll);
+  runBtn.addEventListener('click', runScraper);
+  exportBtn.addEventListener('click', exportCSV);
+
+  function addCity() {
+    var val = cityInput.value.trim();
+    if (!val) return;
+    if (val.indexOf(',') === -1) { flash('Format: City, ST — e.g. Atlanta, GA'); return; }
+    var parts = val.split(',');
+    if (parts.length < 2 || parts[1].trim().length !== 2) { flash('State must be 2 letters'); return; }
+    var normalized = parts[0].trim() + ', ' + parts[1].trim().toUpperCase();
+    if (cities.indexOf(normalized) !== -1) { flash(normalized + ' already added'); return; }
+    cities.push(normalized);
+    cityInput.value = '';
+    renderCityList();
+  }
+
+  function removeCity(idx) {
+    cities.splice(idx, 1);
+    renderCityList();
+  }
+
+  function renderCityList() {
+    cityCount.textContent = cities.length;
+    runBtn.disabled = cities.length === 0;
+    if (cities.length === 0) {
+      cityList.innerHTML = '<div class="empty-state">No cities added yet</div>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < cities.length; i++) {
+      html += '<div class="city-tag"><span>' + cities[i] + '</span><button data-idx="' + i + '">x</button></div>';
+    }
+    cityList.innerHTML = html;
+    var btns = cityList.querySelectorAll('button');
+    for (var j = 0; j < btns.length; j++) {
+      btns[j].addEventListener('click', function() { removeCity(parseInt(this.getAttribute('data-idx'))); });
+    }
+  }
+
+  function clearAll() {
+    cities = []; results = [];
+    renderCityList();
+    resultsBody.innerHTML = '';
+    resultsSection.classList.remove('visible');
+    placeholder.style.display = 'flex';
+    statusLog.classList.remove('visible');
+    statusLog.innerHTML = '';
+  }
+
+  function flash(msg) {
+    var orig = cityInput.placeholder;
+    cityInput.style.borderColor = 'var(--red)';
+    cityInput.placeholder = msg;
+    setTimeout(function() { cityInput.style.borderColor = ''; cityInput.placeholder = 'Atlanta, GA'; }, 2000);
+  }
+
+  function log(msg, type) {
+    statusLog.classList.add('visible');
+    var line = document.createElement('div');
+    line.className = 'log-line' + (type ? ' ' + type : '');
+    line.textContent = '> ' + msg;
+    statusLog.appendChild(line);
+    statusLog.scrollTop = statusLog.scrollHeight;
+  }
+
+  function getScoreClass(score) {
+    if (score === null || score === undefined) return 'score-na';
+    if (score >= 70) return 'score-green';
+    if (score >= 40) return 'score-yellow';
+    return 'score-red';
+  }
+
+  function getLabelClass(label) {
+    if (!label || label === 'N/A') return 'pill-na';
+    if (label.indexOf('Most') !== -1 || label.indexOf('Very') !== -1) return 'pill-green';
+    if (label.indexOf('Somewhat') !== -1) return 'pill-yellow';
+    return 'pill-red';
+  }
+
+  function renderRow(data) {
+    var score = data.compete_score;
+    var scoreClass = getScoreClass(score);
+    var labelClass = getLabelClass(data.label);
+    var scoreDisplay = (score !== null && score !== undefined) ? score + '/100' : '-';
+    var barWidth = (score !== null && score !== undefined) ? score : 0;
+
+    var dom = (data.dom && data.dom !== 'N/A') ? data.dom : '-';
+    var domNum = parseInt(dom);
+    var domClass = (!isNaN(domNum) && domNum > 60) ? 'dom-warn' : '';
+
+    var svl = (data.sale_vs_list && data.sale_vs_list !== 'N/A') ? data.sale_vs_list : '-';
+    var svlClass = svl.charAt(0) === '+' ? 'svl-pos' : svl.charAt(0) === '-' ? 'svl-neg' : 'svl-na';
+
+    var staleFlag = data.stale ? ' <span class="stale-flag">!</span>' : '';
+
+    var supplyCell = (data.months_supply !== null && data.months_supply !== undefined)
+      ? data.months_supply + ' mo' : '-';
+
+    var supplyLabel = (data.supply_label && data.supply_label !== 'N/A') ? data.supply_label : '-';
+    var supplyLabelClass = supplyLabel.indexOf('Hot') !== -1 ? 'pill-green'
+                         : supplyLabel.indexOf("Seller") !== -1 ? 'pill-green'
+                         : supplyLabel.indexOf('Balanced') !== -1 ? 'pill-yellow'
+                         : supplyLabel !== '-' ? 'pill-red' : 'pill-na';
+
+    var dataDate = (data.data_date && data.data_date !== 'N/A') ? data.data_date : '-';
+    var label = (data.label && data.label !== 'N/A') ? data.label : '-';
+    var medSale = (data.median_sale && data.median_sale !== 'N/A') ? data.median_sale : '-';
+    var hotDom = (data.hot_homes_dom && data.hot_homes_dom !== 'N/A') ? data.hot_homes_dom : '-';
+
+    var tr = document.createElement('tr');
+    if (data.status !== 'OK') tr.className = 'error-row';
+
+    tr.innerHTML =
+      '<td class="city-name">' + data.city + '</td>' +
+      '<td><div class="score-badge ' + scoreClass + '">' +
+        '<span class="score-num">' + scoreDisplay + '</span>' +
+        '<div class="score-bar-wrap"><div class="score-bar" style="width:' + barWidth + '%"></div></div>' +
+      '</div></td>' +
+      '<td><span class="label-pill ' + labelClass + '">' + label + '</span></td>' +
+      '<td>' + medSale + '</td>' +
+      '<td class="' + domClass + '">' + dom + '</td>' +
+      '<td>' + hotDom + '</td>' +
+      '<td class="' + svlClass + '">' + svl + '</td>' +
+      '<td>' + supplyCell + '</td>' +
+      '<td><span class="label-pill ' + supplyLabelClass + '">' + supplyLabel + '</span></td>' +
+      '<td>' + dataDate + staleFlag + '</td>';
+
+    resultsBody.appendChild(tr);
+  }
+
+  function runScraper() {
+    if (cities.length === 0) return;
+    results = [];
+    resultsBody.innerHTML = '';
+    statusLog.innerHTML = '';
+    statusLog.classList.add('visible');
+    placeholder.style.display = 'none';
+    resultsSection.classList.add('visible');
+    runBtn.classList.add('loading');
+    runBtn.disabled = true;
+
+    var citiesParam = cities.join('|');
+    var url = '/scrape?cities=' + encodeURIComponent(citiesParam);
+    var evtSource = new EventSource(url);
+
+    log('Starting browser session...');
+
+    evtSource.onmessage = function(e) {
+      var msg = JSON.parse(e.data);
+      if (msg.type === 'status') {
+        log(msg.message);
+      } else if (msg.type === 'progress') {
+        log(msg.message);
+      } else if (msg.type === 'result') {
+        var d = msg.data;
+        results.push(d);
+        var scoreStr = (d.compete_score !== null && d.compete_score !== undefined) ? 'Score: ' + d.compete_score : 'Score not found';
+        log(d.city + ' - ' + scoreStr, d.compete_score !== null ? 'ok' : 'warn');
+        renderRow(d);
+      } else if (msg.type === 'done') {
+        log('Done - ' + results.length + ' cities analyzed.', 'ok');
+        evtSource.close();
+        runBtn.classList.remove('loading');
+        runBtn.disabled = false;
+      } else if (msg.type === 'error') {
+        log('Error: ' + msg.message, 'warn');
+        evtSource.close();
+        runBtn.classList.remove('loading');
+        runBtn.disabled = false;
+      }
+    };
+
+    evtSource.onerror = function() {
+      log('Connection lost - check terminal.', 'warn');
+      evtSource.close();
+      runBtn.classList.remove('loading');
+      runBtn.disabled = false;
+    };
+  }
+
+  function exportCSV() {
+    if (results.length === 0) return;
+    var headers = ['City','Compete Score','Label','Median Sale','Avg DOM','Hot Homes DOM','Sale vs List','Months Supply','Market Type','Data Date','Stale'];
+    var rows = results.map(function(r) {
+      return [
+        r.city, r.compete_score || '', r.label, r.median_sale, r.dom,
+        r.hot_homes_dom, r.sale_vs_list, r.months_supply || '', r.supply_label,
+        r.data_date, r.stale ? 'YES' : 'NO'
+      ];
+    });
+    var csv = [headers].concat(rows).map(function(r) {
+      return r.map(function(v) { return '"' + v + '"'; }).join(',');
+    }).join('\n');
+    var blob = new Blob([csv], {type: 'text/csv'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'market-scout-' + new Date().toISOString().split('T')[0] + '.csv';
+    a.click();
+  }
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Market Scout</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#0a0a0f; --surface:#111118; --border:#1e1e2e;
+      --accent:#e8ff47; --accent-dim:#b8cc2a;
+      --red:#ff4d4d; --yellow:#ffc145; --green:#47ff8a;
+      --text:#e8e8f0; --muted:#6b6b80;
+      --mono:'DM Mono',monospace; --display:'Syne',sans-serif; --body:'DM Sans',sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;}
+
+    header{border-bottom:1px solid var(--border);padding:20px 40px;display:flex;align-items:center;gap:14px;background:var(--surface);}
+    .logo{width:34px;height:34px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:17px;color:#0a0a0f;}
+    header h1{font-family:var(--display);font-size:19px;font-weight:800;}
+    header span{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--border);padding:3px 8px;border-radius:4px;margin-left:4px;}
+
+    .layout{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 65px);}
+
+    .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:28px 20px;display:flex;flex-direction:column;gap:20px;}
+    .label{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+
+    .input-row{display:flex;gap:8px;}
+    .input-row input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s;}
+    .input-row input:focus{border-color:var(--accent);}
+    .input-row input::placeholder{color:var(--muted);}
+    .btn-add{background:var(--accent);color:#0a0a0f;border:none;border-radius:8px;padding:9px 14px;font-family:var(--display);font-weight:700;font-size:13px;cursor:pointer;}
+    .btn-add:hover{background:var(--accent-dim);}
+
+    .hint{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px;}
+
+    .city-list{display:flex;flex-direction:column;gap:5px;max-height:300px;overflow-y:auto;}
+    .city-tag{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 11px;font-family:var(--mono);font-size:13px;}
+    .city-tag button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:0 2px;}
+    .city-tag button:hover{color:var(--red);}
+    .empty{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center;padding:16px 0;}
+
+    .btn-run{background:var(--accent);color:#0a0a0f;border:none;border-radius:10px;padding:13px;font-family:var(--display);font-weight:800;font-size:14px;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:auto;}
+    .btn-run:hover:not(:disabled){background:var(--accent-dim);}
+    .btn-run:disabled{opacity:.5;cursor:not-allowed;}
+    .btn-run .spinner{width:15px;height:15px;border:2px solid rgba(0,0,0,.3);border-top-color:#0a0a0f;border-radius:50%;animation:spin .7s linear infinite;display:none;}
+    .btn-run.loading .spinner{display:block;}
+    .btn-run.loading .lbl{display:none;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+    .btn-clear{background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:9px;font-family:var(--mono);font-size:12px;cursor:pointer;width:100%;}
+    .btn-clear:hover{border-color:var(--red);color:var(--red);}
+
+    .main{padding:28px 36px;display:flex;flex-direction:column;gap:20px;}
+
+    .log{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;font-family:var(--mono);font-size:12px;color:var(--muted);min-height:50px;display:none;}
+    .log.on{display:block;}
+    .log-line{line-height:1.9;}
+    .log-line.ok{color:var(--green);}
+    .log-line.warn{color:var(--yellow);}
+
+    .results-section{display:none;}
+    .results-section.on{display:block;}
+    .results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+    .results-title{font-family:var(--display);font-size:17px;font-weight:800;}
+    .btn-export{background:none;border:1px solid var(--border);color:var(--text);border-radius:7px;padding:7px 14px;font-family:var(--mono);font-size:11px;cursor:pointer;}
+    .btn-export:hover{border-color:var(--accent);color:var(--accent);}
+
+    .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
+    table{width:100%;border-collapse:collapse;font-size:12px;}
+    thead tr{background:var(--surface);border-bottom:1px solid var(--border);}
+    th{padding:11px 14px;text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;white-space:nowrap;}
+    tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+    tbody tr:last-child{border-bottom:none;}
+    tbody tr:hover{background:rgba(255,255,255,.02);}
+    td{padding:13px 14px;font-family:var(--mono);font-size:12px;white-space:nowrap;}
+    td.city-name{font-family:var(--body);font-weight:500;font-size:13px;}
+
+    .pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-family:var(--mono);}
+    .pill-green{background:rgba(71,255,138,.1);color:var(--green);}
+    .pill-yellow{background:rgba(255,193,69,.1);color:var(--yellow);}
+    .pill-red{background:rgba(255,77,77,.1);color:var(--red);}
+    .pill-na{background:var(--border);color:var(--muted);}
+
+    .c-green{color:var(--green);}
+    .c-yellow{color:var(--yellow);}
+    .c-red{color:var(--red);}
+    .c-muted{color:var(--muted);}
+
+    .placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:70px 40px;text-align:center;gap:10px;border:1px dashed var(--border);border-radius:10px;}
+    .placeholder-icon{font-size:36px;opacity:.3;}
+    .placeholder h3{font-family:var(--display);font-size:17px;color:var(--muted);}
+    .placeholder p{font-family:var(--mono);font-size:11px;color:var(--muted);opacity:.6;}
+
+    .data-date{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px;}
+
+    .input-wrap{position:relative;}
+    .dropdown{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--accent);border-radius:0 0 8px 8px;z-index:100;max-height:220px;overflow-y:auto;display:none;}
+    .dropdown.open{display:block;}
+    .dd-item{padding:9px 12px;font-family:var(--mono);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+    .dd-item:last-child{border-bottom:none;}
+    .dd-item:hover,.dd-item.active{background:rgba(232,255,71,.08);}
+    .dd-item .dd-label{color:var(--text);}
+    .dd-item .dd-type{font-size:10px;color:var(--muted);background:var(--border);padding:2px 6px;border-radius:4px;}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">M</div>
+  <h1>Market Scout <span>City · Zip · County</span></h1>
+</header>
+
+
+<div class="layout">
+  <aside class="sidebar">
+    <div>
+      <div class="label">Add Markets</div>
+      <div class="input-row">
+        <div class="input-wrap" style="flex:1">
+          <input type="text" id="cityInput" placeholder="Atlanta, GA" maxlength="80" autocomplete="off"/>
+          <div class="dropdown" id="dropdown"></div>
+        </div>
+        <button class="btn-add" id="addBtn">+ Add</button>
+      </div>
+      <div class="hint">City: Atlanta, GA &nbsp;·&nbsp; Zip: 30024 &nbsp;·&nbsp; County: Gwinnett County, GA</div>
+    </div>
+    <div>
+      <div class="label">Markets <span id="cityCount" style="color:var(--text)">0</span></div>
+      <div class="city-list" id="cityList">
+        <div class="empty">No cities added yet</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:auto;">
+      <button class="btn-run" id="runBtn" disabled>
+        <div class="spinner"></div>
+        <span class="lbl">Run Analysis</span>
+      </button>
+      <button class="btn-clear" id="clearBtn">Clear All</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="log" id="log"></div>
+    <div class="placeholder" id="placeholder">
+      <div class="placeholder-icon">📍</div>
+      <h3>No markets analyzed yet</h3>
+      <p>Add cities on the left and click Run Analysis</p>
+    </div>
+    <div class="results-section" id="resultsSection">
+      <div class="results-header">
+        <div class="results-title">Results</div>
+        <button class="btn-export" id="exportBtn">Download CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>City</th>
+              <th>Market Type</th>
+              <th>PAR Ratio</th>
+              <th>Months Supply</th>
+              <th>Avg DOM</th>
+              <th>Median Sale</th>
+              <th>Sale vs List</th>
+              <th>% Sold Above</th>
+              <th>Price Drops</th>
+              <th>Off Mkt 2wk</th>
+              <th>Avg HH Income</th>
+              <th>Data Date</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function() {
+  var cities = [];
+  var results = [];
+
+  var cityInput      = document.getElementById('cityInput');
+  var cityList       = document.getElementById('cityList');
+  var cityCount      = document.getElementById('cityCount');
+  var runBtn         = document.getElementById('runBtn');
+  var clearBtn       = document.getElementById('clearBtn');
+  var addBtn         = document.getElementById('addBtn');
+  var exportBtn      = document.getElementById('exportBtn');
+  var logEl          = document.getElementById('log');
+  var placeholder    = document.getElementById('placeholder');
+  var resultsSection = document.getElementById('resultsSection');
+  var resultsBody    = document.getElementById('resultsBody');
+
+  var dropdown = document.getElementById('dropdown');
+  var ddItems = [];
+  var ddActive = -1;
+  var debounceTimer = null;
+
+  cityInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      if (ddActive >= 0 && ddItems[ddActive]) {
+        selectSuggestion(ddItems[ddActive].value);
+      } else {
+        addCity(cityInput.value);
+      }
+      e.preventDefault();
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      ddActive = Math.min(ddActive + 1, ddItems.length - 1);
+      renderDropdown();
+      e.preventDefault();
+    }
+    if (e.key === 'ArrowUp') {
+      ddActive = Math.max(ddActive - 1, -1);
+      renderDropdown();
+      e.preventDefault();
+    }
+    if (e.key === 'Escape') {
+      closeDropdown();
+    }
+  });
+
+  cityInput.addEventListener('input', function() {
+    var q = cityInput.value.trim();
+    ddActive = -1;
+    clearTimeout(debounceTimer);
+    if (q.length < 2) { closeDropdown(); return; }
+    debounceTimer = setTimeout(function() { fetchSuggestions(q); }, 200);
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.input-wrap')) closeDropdown();
+  });
+
+  function fetchSuggestions(q) {
+    fetch('/suggest?q=' + encodeURIComponent(q))
+      .then(function(r) { return r.json(); })
+      .then(function(items) {
+        ddItems = items;
+        renderDropdown();
+      });
+  }
+
+  function renderDropdown() {
+    if (!ddItems.length) { closeDropdown(); return; }
+    var html = '';
+    for (var i = 0; i < ddItems.length; i++) {
+      var active = i === ddActive ? ' active' : '';
+      html += '<div class="dd-item' + active + '" data-i="' + i + '">' +
+              '<span class="dd-label">' + ddItems[i].label + '</span>' +
+              '<span class="dd-type">' + ddItems[i].type + '</span>' +
+              '</div>';
+    }
+    dropdown.innerHTML = html;
+    dropdown.classList.add('open');
+    dropdown.querySelectorAll('.dd-item').forEach(function(el) {
+      el.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        selectSuggestion(ddItems[parseInt(this.getAttribute('data-i'))].value);
+      });
+    });
+  }
+
+  function selectSuggestion(val) {
+    cityInput.value = '';
+    closeDropdown();
+    addCity(val);
+  }
+
+  function closeDropdown() {
+    dropdown.classList.remove('open');
+    ddItems = [];
+    ddActive = -1;
+  }
+
+  addBtn.addEventListener('click', function() { addCity(cityInput.value); });
+  clearBtn.addEventListener('click', clearAll);
+  runBtn.addEventListener('click', runScraper);
+  exportBtn.addEventListener('click', exportCSV);
+
+  function addCity(raw) {
+    var val = (raw || '').trim();
+    if (!val) return;
+
+    var norm;
+    if (/^\d{5}$/.test(val)) {
+      norm = val;
+    } else if (val.indexOf(',') !== -1) {
+      var parts = val.split(',');
+      if (parts[parts.length-1].trim().length !== 2) { flash('State must be 2 letters e.g. GA'); return; }
+      norm = parts.slice(0, parts.length-1).join(',').trim() + ', ' + parts[parts.length-1].trim().toUpperCase();
+    } else {
+      flash('City, ST  or  30024  or  County, ST');
+      return;
+    }
+
+    if (cities.indexOf(norm) !== -1) { flash(norm + ' already added'); return; }
+    cities.push(norm);
+    cityInput.value = '';
+    closeDropdown();
+    renderList();
+  }
+
+  function removeCity(idx) { cities.splice(idx, 1); renderList(); }
+
+  function renderList() {
+    cityCount.textContent = cities.length;
+    runBtn.disabled = cities.length === 0;
+    if (!cities.length) { cityList.innerHTML = '<div class="empty">No cities added yet</div>'; return; }
+    var html = '';
+    for (var i = 0; i < cities.length; i++) {
+      html += '<div class="city-tag"><span>' + cities[i] + '</span><button data-i="' + i + '">x</button></div>';
+    }
+    cityList.innerHTML = html;
+    cityList.querySelectorAll('button').forEach(function(b) {
+      b.addEventListener('click', function() { removeCity(parseInt(this.getAttribute('data-i'))); });
+    });
+  }
+
+  function clearAll() {
+    cities = []; results = [];
+    renderList();
+    resultsBody.innerHTML = '';
+    resultsSection.classList.remove('on');
+    placeholder.style.display = 'flex';
+    logEl.classList.remove('on');
+    logEl.innerHTML = '';
+  }
+
+  function flash(msg) {
+    cityInput.style.borderColor = 'var(--red)';
+    cityInput.placeholder = msg;
+    setTimeout(function() { cityInput.style.borderColor = ''; cityInput.placeholder = 'Atlanta, GA'; }, 2000);
+  }
+
+  function log(msg, cls) {
+    logEl.classList.add('on');
+    var d = document.createElement('div');
+    d.className = 'log-line' + (cls ? ' ' + cls : '');
+    d.textContent = '> ' + msg;
+    logEl.appendChild(d);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function pill(text, cls) {
+    return '<span class="pill ' + (cls || 'pill-na') + '">' + (text || '-') + '</span>';
+  }
+
+  function marketPill(label) {
+    if (!label || label === 'null') return pill('-');
+    var cls = label.indexOf('Hot') !== -1 || label.indexOf('Seller') !== -1 ? 'pill-green'
+            : label.indexOf('Balanced') !== -1 ? 'pill-yellow' : 'pill-red';
+    return pill(label, cls);
+  }
+
+  function colorVal(val, goodHigh) {
+    if (!val || val === '-') return '<span class="c-muted">-</span>';
+    var n = parseFloat(val);
+    if (isNaN(n)) return val;
+    var cls = goodHigh
+      ? (n > 0 ? 'c-green' : n < 0 ? 'c-red' : '')
+      : (n > 60 ? 'c-red' : '');
+    return '<span class="' + cls + '">' + val + '</span>';
+  }
+
+  function renderRow(d) {
+    var par = (d.par_ratio !== null && d.par_ratio !== undefined)
+      ? d.par_ratio + '% (' + d.par_pending + 'p/' + d.par_total + 't)' : '-';
+
+    var parPillCls = d.par_ratio === null || d.par_ratio === undefined ? 'pill-na'
+                   : d.par_ratio >= 40 ? 'pill-green'
+                   : d.par_ratio >= 20 ? 'pill-yellow'
+                   : 'pill-red';
+    var parPill = par === '-' ? '<span class="c-muted">-</span>'
+                : '<span class="pill ' + parPillCls + '">' + par + '</span>';
+
+    var ms = (d.months_supply !== null && d.months_supply !== undefined)
+      ? d.months_supply + ' mo'
+      : (d.dtype === 'zip' ? '<span class="c-muted" title="Not available at zip level">zip N/A</span>' : '-');
+
+    var dom = d.median_dom ? d.median_dom + ' days' : '-';
+    var domCls = d.median_dom && d.median_dom > 60 ? 'c-red' : '';
+
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td class="city-name">' + d.city.toUpperCase() + '</td>' +
+      '<td>' + marketPill(d.supply_label || d.par_label) + '</td>' +
+      '<td>' + parPill + '</td>' +
+      '<td>' + ms + '</td>' +
+      '<td><span class="' + domCls + '">' + dom + '</span></td>' +
+      '<td>' + (d.median_sale || '-') + '</td>' +
+      '<td>' + colorVal(d.sale_to_list, true) + '</td>' +
+      '<td>' + (d.sold_above_list || '-') + '</td>' +
+      '<td>' + (d.price_drops || '-') + '</td>' +
+      '<td>' + (d.off_market_2wk || '-') + '</td>' +
+      '<td>' + (d.hh_income || '<span class="c-muted">-</span>') + '</td>' +
+      '<td class="c-muted">' + (d.period || '-') + '</td>';
+    resultsBody.appendChild(tr);
+  }
+
+  function runScraper() {
+    if (!cities.length) return;
+    results = [];
+    resultsBody.innerHTML = '';
+    logEl.innerHTML = '';
+    logEl.classList.add('on');
+    placeholder.style.display = 'none';
+    resultsSection.classList.add('on');
+    runBtn.classList.add('loading');
+    runBtn.disabled = true;
+
+    var url = '/scrape?cities=' + encodeURIComponent(cities.join('|'));
+    var es = new EventSource(url);
+
+    log('Looking up cities from Redfin data...');
+
+    es.onmessage = function(e) {
+      var msg = JSON.parse(e.data);
+      if (msg.type === 'progress') {
+        log(msg.message);
+      } else if (msg.type === 'result') {
+        var d = msg.data;
+        results.push(d);
+        if (d.status === 'OK') {
+          log(d.city + ' - Done', 'ok');
+        } else {
+          log(d.city + ' - ' + d.status, 'warn');
+        }
+        renderRow(d);
+      } else if (msg.type === 'done') {
+        log('Done - ' + results.length + ' cities.', 'ok');
+        es.close();
+        runBtn.classList.remove('loading');
+        runBtn.disabled = false;
+      } else if (msg.type === 'error') {
+        log('Error: ' + msg.message, 'warn');
+        es.close();
+        runBtn.classList.remove('loading');
+        runBtn.disabled = false;
+      }
+    };
+
+    es.onerror = function() {
+      log('Connection error.', 'warn');
+      es.close();
+      runBtn.classList.remove('loading');
+      runBtn.disabled = false;
+    };
+  }
+
+  function exportCSV() {
+    if (!results.length) return;
+    var headers = ['City','Median Sale','Avg DOM','Sale vs List','% Sold Above List',
+                   'PAR Ratio','PAR Pending','PAR Total','Months Supply','Market Type',
+                   'Price Drops','Off Market 2wk','Homes Sold','New Listings','Avg HH Income','Data Date'];
+    var rows = results.map(function(r) {
+      return [
+        r.city, r.median_sale||'', r.median_dom||'', r.sale_to_list||'',
+        r.sold_above_list||'', r.par_ratio||'', r.par_pending||'', r.par_total||'',
+        r.months_supply||'', r.supply_label||'', r.price_drops||'',
+        r.off_market_2wk||'', r.homes_sold||'', r.new_listings||'', r.hh_income||'', r.period||''
+      ];
+    });
+    var csv = [headers].concat(rows).map(function(r) {
+      return r.map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
+    }).join('\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+    a.download = 'market-scout-' + new Date().toISOString().split('T')[0] + '.csv';
+    a.click();
+  }
+})();
+</script>
+<div id="loading-overlay" style="
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:#0a0a0f;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;z-index:9999;
+">
+  <div style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#e8e8f0;display:flex;align-items:center;gap:12px;">
+    <div style="width:36px;height:36px;background:#e8ff47;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#0a0a0f;font-weight:800;">M</div>
+    Market Scout
+  </div>
+  <div style="width:320px;height:3px;background:#1e1e2e;border-radius:2px;overflow:hidden;margin-bottom:4px;">
+    <div id="loading-bar" style="height:100%;background:#e8ff47;border-radius:2px;width:0%;transition:width 0.5s ease;"></div>
+  </div>
+  <div id="loading-log" style="
+    width:320px;
+    font-family:'DM Mono',monospace;
+    font-size:12px;
+    color:#6b6b80;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  "></div>
+</div>
+
+<script>
+(function() {
+  var overlay  = document.getElementById('loading-overlay');
+  var bar      = document.getElementById('loading-bar');
+  var logEl    = document.getElementById('loading-log');
+  var seen     = 0;
+  var pct      = 0;
+  var steps    = ['Starting up...','City data loading...','City data loaded','Zip data loading...','Zip data loaded','County data loading...','County data loaded','Building search index...','Ready!'];
+
+  function addLine(text) {
+    var line = document.createElement('div');
+    var isReady = text === 'Ready!';
+    var isDone  = text.indexOf('loaded') !== -1;
+    line.style.color = isReady ? '#47ff8a' : isDone ? '#e8e8f0' : '#6b6b80';
+    line.textContent = '> ' + text;
+    logEl.appendChild(line);
+  }
+
+  function checkReady() {
+    fetch('/status')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var log = d.log || [];
+        for (var i = seen; i < log.length; i++) {
+          addLine(log[i]);
+          // Advance progress bar based on log position
+          var idx = steps.indexOf(log[i]);
+          if (idx >= 0) {
+            pct = Math.round((idx + 1) / steps.length * 100);
+            bar.style.width = pct + '%';
+          }
+        }
+        seen = log.length;
+
+        if (d.ready) {
+          bar.style.width = '100%';
+          setTimeout(function() {
+            overlay.style.opacity = '0';
+            overlay.style.transition = 'opacity 0.5s';
+            setTimeout(function() { overlay.style.display = 'none'; }, 500);
+          }, 600);
+        } else {
+          setTimeout(checkReady, 800);
+        }
+      })
+      .catch(function() {
+        setTimeout(checkReady, 1500);
+      });
+  }
+  checkReady();
+})();
+</script>
+
+</body>
+</html>
