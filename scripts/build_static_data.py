@@ -19,6 +19,7 @@ from market_data import (  # noqa: E402
     DEFAULT_BUILD_DIR,
     DEFAULT_RAW_DIR,
     ensure_dataset_file,
+    fetch_dataset_metadata,
     get_dataset_local_path,
     parse_dataset_file,
     write_static_artifacts,
@@ -64,7 +65,25 @@ def main():
     output_dir = Path(args.output_dir)
 
     caches = {}
+    source_metadata = {}
     for dataset_key in DATASET_ORDER:
+        try:
+            source_metadata[dataset_key] = fetch_dataset_metadata(dataset_key)
+            print(
+                f"Upstream {dataset_key} dataset last modified -> "
+                f"{source_metadata[dataset_key].get('last_modified') or 'unknown'}"
+            )
+        except Exception as exc:
+            source_metadata[dataset_key] = {
+                "dataset": dataset_key,
+                "url": None,
+                "last_modified": None,
+                "etag": None,
+                "content_length": None,
+                "metadata_error": str(exc),
+            }
+            print(f"Warning: could not fetch upstream metadata for {dataset_key}: {exc}")
+
         if args.skip_download:
             local_path = get_dataset_local_path(dataset_key, raw_dir=raw_dir)
             if not local_path.exists():
@@ -85,7 +104,11 @@ def main():
         caches[dataset_key] = parse_dataset_file(local_path, dataset_key)
         print(f"Loaded {len(caches[dataset_key]):,} {dataset_key} records")
 
-    summary = write_static_artifacts(caches, output_dir=output_dir)
+    summary = write_static_artifacts(
+        caches,
+        output_dir=output_dir,
+        source_metadata=source_metadata,
+    )
     print(f"Wrote static artifacts -> {output_dir}")
     print(
         "Counts:",
@@ -93,6 +116,11 @@ def main():
             f"{dataset}={count:,}" for dataset, count in summary["manifest"]["datasets"].items()
         ),
     )
+    if summary["manifest"].get("latest_source_updated_at"):
+        print(
+            "Latest Redfin source update:",
+            summary["manifest"]["latest_source_updated_at"],
+        )
     print(f"Search index entries: {summary['search_index_count']:,}")
 
 

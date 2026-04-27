@@ -463,7 +463,7 @@
         </div>
         <div class="hero-mini">
           <strong>Current market snapshot</strong>
-          <span id="heroManifestMeta">Checking latest published data...</span>
+          <span id="heroManifestMeta">Checking latest Redfin source update...</span>
         </div>
       </div>
     </section>
@@ -618,11 +618,12 @@
     statZips.textContent = formatCount(manifest.datasets.zip);
     statCounties.textContent = formatCount(manifest.datasets.county);
     statIndex.textContent = formatCount(manifest.search_index_count);
-    var friendlyDate = formatDisplayDate(manifest.generated_at);
-    headerMeta.innerHTML = 'Updated <strong style="color:var(--text)">' + escapeHtml(friendlyDate) + '</strong><br/>' + formatCount(manifest.search_index_count) + ' markets searchable';
+    var sourceDate = manifest.latest_source_updated_at || manifest.generated_at;
+    var friendlyDate = formatDisplayDate(sourceDate);
+    headerMeta.innerHTML = 'Redfin updated <strong style="color:var(--text)">' + escapeHtml(friendlyDate) + '</strong><br/>' + formatCount(manifest.search_index_count) + ' markets searchable';
     manifestNote.textContent = formatCount(manifest.datasets.city) + ' cities • ' + formatCount(manifest.datasets.zip) + ' ZIPs • ' + formatCount(manifest.datasets.county) + ' counties';
-    heroManifestMeta.textContent = 'Latest published snapshot updated ' + friendlyDate + '.';
-    resultsMeta.textContent = 'Latest published snapshot updated ' + friendlyDate;
+    heroManifestMeta.textContent = 'Latest Redfin source update: ' + friendlyDate + '.';
+    resultsMeta.textContent = 'Redfin source updated ' + friendlyDate;
   }
 
   function formatCount(value) {

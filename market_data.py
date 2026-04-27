@@ -6,6 +6,7 @@ Shared Redfin dataset helpers for the local Flask app and the static web data bu
 from __future__ import annotations
 
 import datetime
+import email.utils
 import gzip
 import json
 import os
@@ -66,6 +67,39 @@ def download_dataset(dataset_key, destination, timeout=90):
             shutil.copyfileobj(response, handle, length=1024 * 1024)
     tmp_path.replace(destination)
     return destination
+
+
+def _normalize_http_datetime(value):
+    if not value:
+        return None
+    try:
+        parsed = email.utils.parsedate_to_datetime(value)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+        parsed = parsed.astimezone(datetime.timezone.utc)
+        return parsed.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    except Exception:
+        return None
+
+
+def fetch_dataset_metadata(dataset_key, timeout=30):
+    """Fetch current upstream metadata for a Redfin dataset via HEAD request."""
+    spec = DATASET_SPECS[dataset_key]
+    request = urllib.request.Request(
+        spec["url"],
+        headers={"User-Agent": "Mozilla/5.0"},
+        method="HEAD",
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        headers = response.headers
+        content_length = headers.get("Content-Length")
+        return {
+            "dataset": dataset_key,
+            "url": spec["url"],
+            "last_modified": _normalize_http_datetime(headers.get("Last-Modified")),
+            "etag": headers.get("ETag", "").strip('"') or None,
+            "content_length": int(content_length) if content_length and content_length.isdigit() else None,
+        }
 
 
 def ensure_dataset_file(
@@ -379,9 +413,10 @@ def _write_json(path, payload):
         json.dump(payload, handle, separators=(",", ":"), sort_keys=True)
 
 
-def write_static_artifacts(caches, output_dir=DEFAULT_BUILD_DIR):
+def write_static_artifacts(caches, output_dir=DEFAULT_BUILD_DIR, source_metadata=None):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    source_metadata = source_metadata or {}
 
     search_index = build_search_index(caches)
     _write_json(output_dir / "search-index.json", search_index)
@@ -421,10 +456,21 @@ def write_static_artifacts(caches, output_dir=DEFAULT_BUILD_DIR):
         }[dataset_key]
         _write_json(output_dir / top_level_name, dataset_manifest)
 
+    latest_source_updated_at = None
+    source_last_modified_values = [
+        metadata.get("last_modified")
+        for metadata in source_metadata.values()
+        if metadata.get("last_modified")
+    ]
+    if source_last_modified_values:
+        latest_source_updated_at = max(source_last_modified_values)
+
     manifest = {
         "generated_at": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
         "datasets": total_counts,
         "search_index_count": len(search_index),
+        "latest_source_updated_at": latest_source_updated_at,
+        "sources": source_metadata,
         "files": {
             "search_index": "search-index.json",
             "cities": "cities.json",
