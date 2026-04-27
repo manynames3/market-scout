@@ -390,7 +390,7 @@
         <span class="chip">City</span>
         <span class="chip">Zip</span>
         <span class="chip">County</span>
-        <span class="chip">Static Web Build</span>
+        <span class="chip">Market Intelligence</span>
       </div>
     </div>
   </div>
@@ -408,18 +408,18 @@
         </div>
         <button class="btn-add" id="addBtn">+ Add</button>
       </div>
-      <div class="hint">Search any city, zip code, or county from the prebuilt Redfin snapshot.</div>
+      <div class="hint">Search any city, zip code, or county to compare pricing, supply, speed, and demand.</div>
     </div>
 
     <div>
-      <div class="label">Dataset</div>
+      <div class="label">Coverage</div>
       <div class="dataset-card" id="datasetCard">
         <div class="dataset-stat"><strong id="statCities">-</strong><span>Cities</span></div>
         <div class="dataset-stat"><strong id="statZips">-</strong><span>Zips</span></div>
         <div class="dataset-stat"><strong id="statCounties">-</strong><span>Counties</span></div>
         <div class="dataset-stat"><strong id="statIndex">-</strong><span>Search Index</span></div>
       </div>
-      <div class="small-note" id="manifestNote">Waiting for manifest...</div>
+      <div class="small-note" id="manifestNote">Loading market coverage...</div>
     </div>
 
     <div>
@@ -441,29 +441,29 @@
   <main class="main">
     <section class="hero">
       <div class="hero-card">
-        <h2>Real estate market analytics without a live backend.</h2>
+        <h2>See where the market is tightening, softening, or accelerating.</h2>
         <p>
-          This web build reads precomputed Redfin artifacts directly in the browser. Search
-          suggestions come from a static index, results come from state shards, and the site
-          can be hosted on low-cost static infrastructure.
+          Compare cities, ZIP codes, and counties in seconds using the metrics buyers,
+          investors, and operators actually care about: pricing, supply, competition,
+          absorption speed, and household income context.
         </p>
       </div>
       <div class="hero-grid">
         <div class="hero-mini">
-          <strong>No live Flask server</strong>
-          <span>Search and lookup run against static JSON produced by the Phase 1 build.</span>
+          <strong>Fast market scans</strong>
+          <span>Build shortlists quickly and compare multiple markets side by side.</span>
         </div>
         <div class="hero-mini">
-          <strong>Phone-friendly</strong>
-          <span>Responsive layout for browser access anywhere, including on mobile.</span>
+          <strong>Anywhere access</strong>
+          <span>Use it on desktop or phone when you need a quick market read on the go.</span>
         </div>
         <div class="hero-mini">
-          <strong>Cost-conscious</strong>
-          <span>Designed for Cloudflare Pages plus scheduled artifact refreshes.</span>
+          <strong>Decision-ready signals</strong>
+          <span>Spot pricing pressure, inventory shifts, and demand strength without digging through raw files.</span>
         </div>
         <div class="hero-mini">
-          <strong>Fresh on rebuild</strong>
-          <span id="heroManifestMeta">Manifest not loaded yet.</span>
+          <strong>Current market snapshot</strong>
+          <span id="heroManifestMeta">Checking latest published data...</span>
         </div>
       </div>
     </section>
@@ -480,7 +480,7 @@
       <div class="results-header">
         <div>
           <div class="results-title">Results</div>
-          <div class="results-subtitle" id="resultsMeta">Static snapshot analysis</div>
+          <div class="results-subtitle" id="resultsMeta">Market comparison</div>
         </div>
         <button class="btn-secondary" id="exportBtn">Download CSV</button>
       </div>
@@ -508,8 +508,7 @@
     </section>
 
     <div class="footer-note">
-      Generated data is expected under <code>./data/</code>. If you are previewing locally,
-      build the data artifacts first and then assemble the static site.
+      Market Scout helps you compare local housing conditions across cities, ZIP codes, and counties using Redfin public market data.
     </div>
   </main>
 </div>
@@ -619,14 +618,25 @@
     statZips.textContent = formatCount(manifest.datasets.zip);
     statCounties.textContent = formatCount(manifest.datasets.county);
     statIndex.textContent = formatCount(manifest.search_index_count);
-    headerMeta.innerHTML = 'Generated <strong style="color:var(--text)">' + escapeHtml(manifest.generated_at) + '</strong><br/>Static search index loaded in browser';
-    manifestNote.textContent = 'Generated ' + manifest.generated_at + ' • ' + formatCount(manifest.search_index_count) + ' searchable markets';
-    heroManifestMeta.textContent = 'Snapshot generated ' + manifest.generated_at + '.';
-    resultsMeta.textContent = 'Data snapshot generated ' + manifest.generated_at;
+    var friendlyDate = formatDisplayDate(manifest.generated_at);
+    headerMeta.innerHTML = 'Updated <strong style="color:var(--text)">' + escapeHtml(friendlyDate) + '</strong><br/>' + formatCount(manifest.search_index_count) + ' markets searchable';
+    manifestNote.textContent = formatCount(manifest.datasets.city) + ' cities • ' + formatCount(manifest.datasets.zip) + ' ZIPs • ' + formatCount(manifest.datasets.county) + ' counties';
+    heroManifestMeta.textContent = 'Latest published snapshot updated ' + friendlyDate + '.';
+    resultsMeta.textContent = 'Latest published snapshot updated ' + friendlyDate;
   }
 
   function formatCount(value) {
     return Number(value || 0).toLocaleString('en-US');
+  }
+
+  function formatDisplayDate(value) {
+    var date = new Date(value);
+    if (isNaN(date.getTime())) return value;
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
   }
 
   function fetchJson(url) {
