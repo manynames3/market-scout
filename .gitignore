@@ -1,1 +1,5 @@
 *.tsv.gz
+.cache/
+generated/
+__pycache__/
+dist/

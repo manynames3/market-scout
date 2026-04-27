@@ -1,0 +1,109 @@
+name: Static Site
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/static-site.yml"
+      - "market_data.py"
+      - "scripts/**"
+      - "static/**"
+      - "docs/**"
+      - "README.md"
+  pull_request:
+    paths:
+      - ".github/workflows/static-site.yml"
+      - "market_data.py"
+      - "scripts/**"
+      - "static/**"
+      - "docs/**"
+      - "README.md"
+  schedule:
+    - cron: "0 12 1 * *"
+  workflow_dispatch:
+    inputs:
+      force_refresh:
+        description: "Re-download Redfin source files even if a cache file already exists"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: static-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build static site
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build static data artifacts
+        env:
+          FORCE_REFRESH: ${{ (github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && inputs.force_refresh) }}
+        run: |
+          if [ "$FORCE_REFRESH" = "true" ]; then
+            python3 scripts/build_static_data.py --force-refresh
+          else
+            python3 scripts/build_static_data.py
+          fi
+
+      - name: Assemble deployable static site
+        run: python3 scripts/build_static_site.py
+
+      - name: Upload static site artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-scout-static-site
+          path: dist
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy to Cloudflare Pages
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      deployments: write
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+
+    steps:
+      - name: Check Cloudflare deployment configuration
+        if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == '' || env.CLOUDFLARE_PAGES_PROJECT == ''
+        run: |
+          echo "Cloudflare deployment configuration is incomplete."
+          echo "Skipping deploy because one or more of these are missing:"
+          echo "- CLOUDFLARE_API_TOKEN"
+          echo "- CLOUDFLARE_ACCOUNT_ID"
+          echo "- CLOUDFLARE_PAGES_PROJECT"
+
+      - name: Download static site artifact
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && env.CLOUDFLARE_PAGES_PROJECT != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: market-scout-static-site
+          path: dist
+
+      - name: Deploy with Wrangler
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && env.CLOUDFLARE_PAGES_PROJECT != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
