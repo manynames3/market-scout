@@ -1,173 +1,221 @@
 # Market Scout
 
-Real estate market analytics tool powered by Redfin public data. Search any US city, zip code, or county and get key market metrics instantly — no API key, no scraping, no browser automation required.
+Market Scout is a real estate market analytics tool powered by Redfin public data. It can
+search US cities, ZIP codes, and counties and surface the metrics that matter most for
+evaluating a housing market.
 
-## Current State
+The project started as a local Python/Flask app, later gained a macOS wrapper, and now has
+a static web deployment path designed for very low monthly cost.
 
-This repository currently ships a local-first Python/Flask app and a macOS app wrapper.
-It works well on a laptop because it can cache Redfin source data locally and keep an
-always-on in-memory search index.
+## What It Does
 
-## Web Deployment Direction
+Market Scout pulls market-level housing data from Redfin's public market tracker datasets
+and presents it in a simpler form for quick comparison.
 
-The online/mobile version is being redesigned around a static frontend plus scheduled data
-builds instead of an always-on Flask server.
+Metrics include:
 
-- Frontend: Cloudflare Pages
-- Scheduled data build: GitHub Actions
-- Optional artifact storage: Cloudflare R2
-- Cost target: free or as close to $0/month as possible
+| Metric | What It Tells You |
+|--------|-------------------|
+| Median Sale Price | Current market price level |
+| Months of Supply | Inventory tightness |
+| Pending-to-Available Ratio (PAR) | Demand intensity |
+| Median Days on Market | How fast homes are selling |
+| Sale-to-List % | Whether homes sell above or below ask |
+| Sold Above List % | Share of homes facing bidding pressure |
+| Price Drop % | Share of listings with reductions |
+| Off Market in 2 Weeks % | Speed of inventory absorption |
+| Median Household Income | Census ACS 5-year estimate |
 
-Why this changed:
+## Project Modes
 
-- The current app architecture downloads Redfin source files locally and builds large
-  in-memory caches on startup.
-- That is a poor fit for serverless and ultra-cheap always-on hosting.
-- A static site with prebuilt compact data files is materially cheaper and simpler to run.
+This repository currently supports two practical modes:
 
-See [docs/adr/0001-web-hosting-and-cost-strategy.md](docs/adr/0001-web-hosting-and-cost-strategy.md)
-for the decision record and
-[docs/web-migration-plan.md](docs/web-migration-plan.md) for the implementation plan.
+### 1. Local Flask app
 
-## Phase 1 Build
+Good for development and local use.
 
-Phase 1 extracts the Redfin download/parse path into a standalone static-data build:
+- loads Redfin data into memory
+- serves the UI from Flask
+- supports local caching on disk
+
+### 2. Static web build
+
+Good for public hosting and phones.
+
+- prebuilds compact Redfin artifacts
+- serves a static frontend
+- can be hosted cheaply on Cloudflare Pages
+
+## Why The Web Version Changed
+
+The original local architecture was fine on a laptop, but it is a poor fit for cheap web
+hosting because it assumes:
+
+- a long-lived Python process
+- local filesystem caching
+- startup-time dataset downloads
+- in-memory search structures
+
+The web version therefore uses:
+
+- Cloudflare Pages for the frontend
+- prebuilt JSON artifacts for search and market lookups
+- GitHub Actions for optional scheduled rebuilds and deploys
+
+For the detailed decision record, see
+[docs/adr/0001-web-hosting-and-cost-strategy.md](docs/adr/0001-web-hosting-and-cost-strategy.md).
+
+## Local App Setup
+
+### Requirements
+
+- Python 3.8+
+- `pip3`
+
+### Install dependencies
+
+```bash
+pip3 install flask playwright playwright-stealth
+python3 -m playwright install chromium
+```
+
+Or use the included setup script:
+
+```bash
+bash setup.sh
+```
+
+### Run the local app
+
+```bash
+python3 app.py
+```
+
+Then open:
+
+- [http://127.0.0.1:8080](http://127.0.0.1:8080)
+
+On macOS you can also use the app wrapper or launcher script:
+
+```bash
+bash launch.sh
+```
+
+## Static Web Build
+
+The static web path is split into two steps.
+
+### Phase 1: Build static data artifacts
 
 ```bash
 python3 scripts/build_static_data.py
 ```
 
-By default this writes generated web artifacts under `generated/web-data/` and caches raw
-Redfin files under `.cache/redfin/`.
+This:
 
-## Phase 2 Static Frontend
+- downloads or reuses cached Redfin source files
+- keeps only the latest row per market
+- emits compact browser-friendly artifacts under `generated/web-data/`
 
-Phase 2 adds a static browser app that reads the generated artifacts directly:
+Default raw cache location:
+
+- `.cache/redfin/`
+
+Generated artifact directory:
+
+- `generated/web-data/`
+
+### Phase 2: Assemble the deployable site
 
 ```bash
 python3 scripts/build_static_site.py
 ```
 
-That assembles a deployable site under `dist/` with:
+This builds:
 
-- committed frontend assets from `static/`
-- generated data copied to `dist/data/`
+- frontend assets from `static/`
+- final deployable site under `dist/`
+- runtime data copied into `dist/data/`
 
-To preview locally:
+### Preview locally
 
 ```bash
 python3 -m http.server 8000 --directory dist
 ```
 
-## Phase 3 Scheduled Build And Deploy
+Then open:
 
-Phase 3 adds a GitHub Actions workflow for unattended refreshes:
+- [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-- workflow file: `.github/workflows/static-site.yml`
-- monthly rebuild schedule: first day of the month at `12:00 UTC`
-- build artifact: `dist/`
-- optional Cloudflare Pages deploy via Wrangler
+## Cloudflare Pages Setup
 
-Cloudflare deployment is enabled only after you configure:
-
-- secret: `CLOUDFLARE_API_TOKEN`
-- secret: `CLOUDFLARE_ACCOUNT_ID`
-- variable: `CLOUDFLARE_PAGES_PROJECT`
-
-See [docs/cloudflare-pages-setup.md](docs/cloudflare-pages-setup.md) for the setup details.
-
-### Why `exit 0` appears in the Pages docs
-
-Cloudflare recommends `exit 0` for static Pages projects when the output directory already
-exists and Pages does not need to build anything itself. In this repository, that only
-applies when deployment is handled by GitHub Actions direct upload and Cloudflare Pages is
-just receiving a finished `dist/` bundle.
-
-It does **not** work for a normal Git-integrated Pages build in this repo, because `dist/`
-is gitignored and is generated at build time. If Cloudflare runs `exit 0`, no `dist/`
-directory gets created, and the deploy fails with `Output directory "dist" not found`.
-
-### Cloudflare Pages project settings for this repo
-
-If you are using Cloudflare's Git integration during project setup, use:
+If Cloudflare Pages is building directly from GitHub, use:
 
 - Build command: `bash scripts/build_cloudflare_pages.sh`
 - Build output directory: `dist`
 
-If you are using GitHub Actions direct upload as the primary deployment path, `exit 0` is
-still valid in principle, but only if Cloudflare is not expected to build the site from
-source.
+That script simply runs the data build and site assembly steps in order:
 
-## What It Does
+```bash
+bash scripts/build_cloudflare_pages.sh
+```
 
-Market Scout downloads Redfin's public market tracker CSVs (city, zip code, and county level), parses them locally, and surfaces the metrics that matter most for evaluating a real estate market. It also pulls median household income from the US Census Bureau API at no cost.
+### Why not `exit 0`
 
-## Metrics Returned
+Cloudflare's docs often show `exit 0` for static projects when the output directory already
+exists and Pages does not need to build anything itself.
 
-| Metric | What It Tells You |
-|--------|-------------------|
-| Median Sale Price | Current market price level |
-| Months of Supply | < 3 = seller's market, > 6 = buyer's market |
-| Pending-to-Available Ratio (PAR) | Demand intensity — higher = more competitive |
-| Median Days on Market | How fast homes are selling |
-| Sale-to-List % | Whether homes sell above or below asking |
-| Sold Above List % | Share of homes with bidding wars |
-| Price Drop % | Share of listings with price reductions |
-| Off Market in 2 Weeks % | How quickly inventory is absorbed |
-| Median Household Income | From US Census ACS 5-year estimates |
+That does **not** work for this repository when Cloudflare is building from source, because:
 
-## Setup
+- `dist/` is not committed
+- `dist/` is created at build time
+- skipping the build means there is nothing to publish
 
-### Requirements
+If Cloudflare runs `exit 0` here, deployment fails with:
 
-- Python 3.8+
-- pip
+- `Output directory "dist" not found`
 
-### Install
+## Monthly Redfin Refreshes
 
+This repository includes a GitHub Actions workflow at
+[`/.github/workflows/static-site.yml`](.github/workflows/static-site.yml) that can rebuild
+the site monthly from fresh Redfin data.
 
+Monthly schedule:
 
-Or on macOS, run the included setup script:
+- first day of the month at `12:00 UTC`
 
+Important distinction:
 
+- Cloudflare Git integration alone can keep the site online
+- GitHub Actions is what enables scheduled monthly rebuilds from Redfin without a manual
+  code change or redeploy
 
-### Run
+To let GitHub Actions publish the rebuilt site to Cloudflare Pages, configure:
 
+- secret `CLOUDFLARE_API_TOKEN`
+- secret `CLOUDFLARE_ACCOUNT_ID`
+- variable `CLOUDFLARE_PAGES_PROJECT`
 
+If those values are not configured:
 
-Then open [http://localhost:5001](http://localhost:5001) in your browser.
+- the site can still work
+- but the monthly GitHub Actions rebuild will not be able to deploy refreshed data to
+  Cloudflare Pages
 
-On macOS you can also double-click **Market Scout.app** or run:
+For setup details, see
+[docs/cloudflare-pages-setup.md](docs/cloudflare-pages-setup.md).
 
+## Data Sources
 
+- [Redfin Data Center](https://www.redfin.com/news/data-center/)
+- [US Census Bureau ACS 5-year estimates](https://www.census.gov/programs-surveys/acs)
 
-## How It Works
+## Additional Docs
 
-In the current local Flask app, startup downloads three Redfin public CSV snapshots from
-their public S3 bucket and caches them locally for 30 days:
-
--  — city-level data
--  — zip code data
--  — county data
-
-After the first run, startup is fast since the data is already cached. The app auto-refreshes the cache when data is older than 30 days.
-
-For the web deployment, this startup-time download model will be replaced by a scheduled
-build pipeline that produces a compact browser-friendly dataset ahead of time.
-
-## Search
-
-The search bar accepts:
-
-- **City** — e.g. 
-- **Zip code** — e.g. 
-- **County** — e.g. 
-
-Autocomplete suggestions appear as you type. Results stream in via SSE (Server-Sent Events) so you see each metric as it loads.
-
-## Data Source
-
-All market data comes from [Redfin's public data center](https://www.redfin.com/news/data-center/). Income data comes from the [US Census Bureau ACS 5-year estimates](https://www.census.gov/programs-surveys/acs) (no API key required).
+- [docs/web-migration-plan.md](docs/web-migration-plan.md)
+- [docs/cloudflare-pages-setup.md](docs/cloudflare-pages-setup.md)
+- [docs/adr/0001-web-hosting-and-cost-strategy.md](docs/adr/0001-web-hosting-and-cost-strategy.md)
 
 ## License
 
