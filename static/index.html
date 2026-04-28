@@ -213,7 +213,7 @@
     .hero-card h2{
       font-family:var(--display);
       font-size:clamp(28px, 4vw, 42px);
-      line-height:1;
+      line-height:1.08;
       margin-bottom:12px;
       max-width:12ch;
     }
@@ -247,6 +247,13 @@
       font-family:var(--mono);
       font-size:11px;
       line-height:1.5;
+    }
+    .hero-mini-date{
+      display:block;
+      margin-top:8px;
+      color:var(--text);
+      font-size:10px;
+      letter-spacing:.2px;
     }
     .log{
       padding:16px 18px;
@@ -408,7 +415,7 @@
         </div>
         <button class="btn-add" id="addBtn">+ Add</button>
       </div>
-      <div class="hint">Search any city, zip code, or county to compare pricing, supply, speed, and demand.</div>
+      <div class="hint">Search any city, zip code, or county.</div>
     </div>
 
     <div>
@@ -454,15 +461,15 @@
           <span>Build shortlists quickly and compare multiple markets side by side.</span>
         </div>
         <div class="hero-mini">
-          <strong>Anywhere access</strong>
-          <span>Use it on desktop or phone when you need a quick market read on the go.</span>
+          <strong>Intelligence on the go</strong>
+          <span>Get a quick, reliable market read from your phone whether you're at the desk or in the field.</span>
         </div>
         <div class="hero-mini">
           <strong>Decision-ready signals</strong>
           <span>Spot pricing pressure, inventory shifts, and demand strength without digging through raw files.</span>
         </div>
         <div class="hero-mini">
-          <strong>Current market snapshot</strong>
+          <strong>Fresh, Reliable Data</strong>
           <span id="heroManifestMeta">Checking latest Redfin source update...</span>
         </div>
       </div>
@@ -622,7 +629,7 @@
     var friendlyDate = formatDisplayDate(sourceDate);
     headerMeta.innerHTML = 'Redfin updated <strong style="color:var(--text)">' + escapeHtml(friendlyDate) + '</strong><br/>' + formatCount(manifest.search_index_count) + ' markets searchable';
     manifestNote.textContent = formatCount(manifest.datasets.city) + ' cities • ' + formatCount(manifest.datasets.zip) + ' ZIPs • ' + formatCount(manifest.datasets.county) + ' counties';
-    heroManifestMeta.textContent = 'Latest Redfin source update: ' + friendlyDate + '.';
+    heroManifestMeta.innerHTML = 'Powered by the latest Redfin market data, updated regularly so you never miss a shift.<span class=\"hero-mini-date\">Latest source update: ' + escapeHtml(friendlyDate) + '</span>';
     resultsMeta.textContent = 'Redfin source updated ' + friendlyDate;
   }
 
