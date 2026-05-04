@@ -122,7 +122,7 @@
     }
     .bulk-input::placeholder{color:var(--muted);}
     .bulk-actions{display:flex;gap:8px;}
-    .bulk-actions .btn-secondary{width:auto;flex:1;}
+    .bulk-actions .btn-secondary,.bulk-actions .btn-accent{width:auto;flex:1;}
     .feedback{
       min-height:18px;
       font-family:var(--mono);
@@ -144,6 +144,18 @@
       cursor:pointer;
     }
     .btn-add:hover,.btn-run:hover:not(:disabled){background:var(--accent-dim);}
+    .btn-accent{
+      background:var(--accent);
+      color:#0a0a0f;
+      border:none;
+      border-radius:10px;
+      padding:10px 14px;
+      font-family:var(--display);
+      font-weight:800;
+      font-size:13px;
+      cursor:pointer;
+    }
+    .btn-accent:hover{background:var(--accent-dim);}
     .hint,.small-note{
       font-family:var(--mono);
       font-size:11px;
@@ -475,7 +487,7 @@
       <div class="bulk-card">
         <textarea id="bulkInput" class="bulk-input" placeholder="Paste a bulk list like: Philadelphia, MS Brooklyn Park, MN Orange County, CA 90210"></textarea>
         <div class="bulk-actions">
-          <button class="btn-secondary" id="bulkAddBtn">Add Pasted List</button>
+          <button class="btn-accent" id="bulkAddBtn">Add Pasted List</button>
         </div>
         <div class="small-note">Bulk paste works with cities, counties, and ZIPs. Cities and counties should include the state.</div>
         <div class="feedback" id="bulkFeedback"></div>
