@@ -46,6 +46,48 @@ Good for public hosting and phones.
 - serves a static frontend
 - can be hosted cheaply on Cloudflare Pages
 
+## Feature Evolution
+
+Market Scout was not built as a one-shot demo. It evolved in stages as the product shape,
+data volume, and hosting constraints became clearer.
+
+### Initial version
+
+- local Python/Flask application
+- market comparison across cities, ZIP codes, and counties
+- Redfin-powered comparison metrics for price, supply, competition, and speed
+- Census-backed household income enrichment
+
+### Desktop-friendly version
+
+- macOS wrapper for local use without running Flask manually
+- local cache reuse to avoid repeated Redfin downloads
+- simpler UI for side-by-side market scans
+
+### Web migration
+
+- static site architecture for low-cost public hosting
+- generated JSON search index and per-state market shards
+- mobile-friendly browser access for phone and tablet use
+- Cloudflare Pages deployment path
+
+### Product and UX improvements
+
+- clearer product-facing positioning instead of developer/demo copy
+- visible Redfin source freshness based on upstream file metadata
+- bulk market paste support for cities, counties, and ZIPs
+- sortable result columns for market ranking workflows
+- CSV export of analysis results
+- better empty/loading/error states for static preview vs deployed site
+
+### Infra and data pipeline improvements
+
+- Redfin source files streamed to disk instead of loaded eagerly into memory
+- shared market parsing layer reused by both the Flask app and static build
+- deployable `dist/` site assembly step separated from raw data generation
+- GitHub Actions workflow for scheduled monthly rebuilds
+- documented Cloudflare Pages and low-cost hosting decision process
+
 ## Why The Web Version Changed
 
 The original local architecture was fine on a laptop, but it is a poor fit for cheap web
