@@ -346,9 +346,33 @@
     table{width:100%;border-collapse:collapse;font-size:12px;min-width:980px;}
     thead tr{background:var(--surface);border-bottom:1px solid var(--border);}
     th{
-      padding:11px 14px;text-align:left;font-family:var(--mono);font-size:10px;
+      padding:0;text-align:left;font-family:var(--mono);font-size:10px;
       letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;white-space:nowrap;
     }
+    .sort-btn{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      padding:11px 14px;
+      background:none;
+      border:none;
+      color:inherit;
+      font:inherit;
+      letter-spacing:inherit;
+      text-transform:inherit;
+      cursor:pointer;
+    }
+    .sort-btn:hover{color:var(--text);background:rgba(255,255,255,.02);}
+    .sort-btn.active{color:var(--accent);}
+    .sort-icon{
+      color:var(--muted);
+      font-size:10px;
+      letter-spacing:0;
+      flex-shrink:0;
+    }
+    .sort-btn.active .sort-icon{color:var(--accent);}
     tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
     tbody tr:last-child{border-bottom:none;}
     tbody tr:hover{background:rgba(255,255,255,.02);}
@@ -535,18 +559,18 @@
         <table>
           <thead>
             <tr>
-              <th>Market</th>
-              <th>Market Type</th>
-              <th>PAR Ratio</th>
-              <th>Months Supply</th>
-              <th>Avg DOM</th>
-              <th>Median Sale</th>
-              <th>Sale vs List</th>
-              <th>% Sold Above</th>
-              <th>Price Drops</th>
-              <th>Off Mkt 2wk</th>
-              <th>Avg HH Income</th>
-              <th>Data Date</th>
+              <th><button type="button" class="sort-btn" data-sort-key="city"><span>Market</span><span class="sort-icon">↕</span></button></th>
+              <th><button type="button" class="sort-btn" data-sort-key="market_type"><span>Market Type</span><span class="sort-icon">↕</span></button></th>
+              <th><button type="button" class="sort-btn" data-sort-key="par_ratio"><span>PAR Ratio</span><span class="sort-icon">↕</span></button></th>
+              <th><button type="button" class="sort-btn" data-sort-key="months_supply"><span>Months Supply</span><span class="sort-icon">↕</span></button></th>
+              <th><button type="button" class="sort-btn" data-sort-key="median_dom"><span>Avg DOM</span><span class="sort-icon">↕</span></button></th>
+              <th><button type="button" class="sort-btn" data-sort-key="median_sale"><span>Median Sale</span><span class="sort-icon">↕</span></button></th>
+              <th><button type="button" class="sort-btn" data-sort-key="sale_to_list"><span>Sale vs List</span><span class="sort-icon">↕</span></button></th>
+              <th><button type="button" class="sort-btn" data-sort-key="sold_above_list"><span>% Sold Above</span><span class="sort-icon">↕</span></button></th>
+              <th><button type="button" class="sort-btn" data-sort-key="price_drops"><span>Price Drops</span><span class="sort-icon">↕</span></button></th>
+              <th><button type="button" class="sort-btn" data-sort-key="off_market_2wk"><span>Off Mkt 2wk</span><span class="sort-icon">↕</span></button></th>
+              <th><button type="button" class="sort-btn" data-sort-key="hh_income"><span>Avg HH Income</span><span class="sort-icon">↕</span></button></th>
+              <th><button type="button" class="sort-btn" data-sort-key="period"><span>Data Date</span><span class="sort-icon">↕</span></button></th>
             </tr>
           </thead>
           <tbody id="resultsBody"></tbody>
@@ -585,6 +609,7 @@
   var searchIndex = [];
   var searchIndexByLookup = {};
   var bulkLookupTrie = createTrieNode();
+  var resultSort = { key: null, direction: 'asc' };
   var shardCache = {};
   var incomeCache = {};
   var manifest = null;
@@ -600,6 +625,7 @@
   var bulkAddBtn = document.getElementById('bulkAddBtn');
   var bulkFeedback = document.getElementById('bulkFeedback');
   var exportBtn = document.getElementById('exportBtn');
+  var sortButtons = Array.prototype.slice.call(document.querySelectorAll('.sort-btn'));
   var logEl = document.getElementById('log');
   var placeholder = document.getElementById('placeholder');
   var resultsSection = document.getElementById('resultsSection');
@@ -927,6 +953,11 @@
   clearBtn.addEventListener('click', clearAll);
   runBtn.addEventListener('click', runAnalysis);
   exportBtn.addEventListener('click', exportCSV);
+  sortButtons.forEach(function(button) {
+    button.addEventListener('click', function() {
+      toggleSort(this.getAttribute('data-sort-key'));
+    });
+  });
 
   function addMarket(input) {
     if (!ensureDataReady('add markets')) return;
@@ -1107,7 +1138,7 @@
     results = [];
     renderSelectionList();
     setBulkFeedback('');
-    resultsBody.innerHTML = '';
+    renderResultsTable();
     resultsSection.classList.remove('on');
     placeholder.style.display = 'flex';
     logEl.classList.remove('on');
@@ -1179,7 +1210,122 @@
       '<td>' + escapeHtml(result.off_market_2wk || '-') + '</td>' +
       '<td>' + (result.hh_income ? escapeHtml(result.hh_income) : '<span class="c-muted">-</span>') + '</td>' +
       '<td class="c-muted">' + escapeHtml(result.period || '-') + '</td>';
-    resultsBody.appendChild(row);
+    return row;
+  }
+
+  function marketTypeLabel(result) {
+    return result.supply_label || result.par_label || result.dtype || '';
+  }
+
+  function parsePercentValue(value) {
+    if (value === null || value === undefined || value === '') return null;
+    var normalized = String(value).replace(/[%+,]/g, '').trim();
+    if (!normalized || normalized === '-') return null;
+    var parsed = parseFloat(normalized);
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  function parseMoneyValue(value) {
+    if (!value) return null;
+    var normalized = String(value).replace(/[$,]/g, '').trim();
+    if (!normalized || normalized === '-') return null;
+    if (/m$/i.test(normalized)) {
+      var millions = parseFloat(normalized.slice(0, -1));
+      return isNaN(millions) ? null : millions * 1000000;
+    }
+    var parsed = parseFloat(normalized);
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  function parseDateValue(value) {
+    if (!value) return null;
+    var parsed = Date.parse(value);
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  function sortableValue(result, key) {
+    switch (key) {
+      case 'city':
+        return String(result.city || '').toLowerCase();
+      case 'market_type':
+        return marketTypeLabel(result).toLowerCase();
+      case 'par_ratio':
+        return result.par_ratio;
+      case 'months_supply':
+        return result.months_supply;
+      case 'median_dom':
+        return result.median_dom;
+      case 'median_sale':
+        return parseMoneyValue(result.median_sale);
+      case 'sale_to_list':
+        return parsePercentValue(result.sale_to_list);
+      case 'sold_above_list':
+        return parsePercentValue(result.sold_above_list);
+      case 'price_drops':
+        return parsePercentValue(result.price_drops);
+      case 'off_market_2wk':
+        return parsePercentValue(result.off_market_2wk);
+      case 'hh_income':
+        return parseMoneyValue(result.hh_income);
+      case 'period':
+        return parseDateValue(result.period);
+      default:
+        return null;
+    }
+  }
+
+  function compareSortable(a, b) {
+    if (typeof a === 'string' || typeof b === 'string') {
+      return String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
+    }
+    return a < b ? -1 : a > b ? 1 : 0;
+  }
+
+  function getSortedResults() {
+    var list = results.slice();
+    if (!resultSort.key) return list;
+    list.sort(function(a, b) {
+      var aVal = sortableValue(a, resultSort.key);
+      var bVal = sortableValue(b, resultSort.key);
+      var aMissing = aVal === null || aVal === undefined || aVal === '';
+      var bMissing = bVal === null || bVal === undefined || bVal === '';
+      if (aMissing && !bMissing) return 1;
+      if (!aMissing && bMissing) return -1;
+      var cmp = compareSortable(aVal, bVal);
+      if (!cmp) cmp = compareSortable(String(a.city || '').toLowerCase(), String(b.city || '').toLowerCase());
+      return resultSort.direction === 'desc' ? -cmp : cmp;
+    });
+    return list;
+  }
+
+  function updateSortUi() {
+    sortButtons.forEach(function(button) {
+      var key = button.getAttribute('data-sort-key');
+      var icon = button.querySelector('.sort-icon');
+      var active = key === resultSort.key;
+      button.classList.toggle('active', active);
+      if (icon) icon.textContent = active ? (resultSort.direction === 'asc' ? '↑' : '↓') : '↕';
+      button.setAttribute('aria-sort', active ? (resultSort.direction === 'asc' ? 'ascending' : 'descending') : 'none');
+    });
+  }
+
+  function toggleSort(key) {
+    if (resultSort.key === key) {
+      resultSort.direction = resultSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      resultSort.key = key;
+      resultSort.direction = 'asc';
+    }
+    renderResultsTable();
+  }
+
+  function renderResultsTable() {
+    resultsBody.innerHTML = '';
+    var sorted = getSortedResults();
+    for (var i = 0; i < sorted.length; i++) {
+      resultsBody.appendChild(renderRow(sorted[i]));
+    }
+    updateSortUi();
   }
 
   async function runAnalysis() {
@@ -1224,7 +1370,7 @@
           };
           results.push(missing);
           log(item.label + ' - Not found', 'warn');
-          renderRow(missing);
+          renderResultsTable();
           continue;
         }
 
@@ -1236,7 +1382,7 @@
           hh_income: income
         });
         results.push(result);
-        renderRow(result);
+        renderResultsTable();
         log(item.label + ' - Done', 'ok');
       } catch (err) {
         var failed = {
@@ -1261,7 +1407,7 @@
           hh_income: null
         };
         results.push(failed);
-        renderRow(failed);
+        renderResultsTable();
         log(item.label + ' - Error loading data', 'warn');
       }
     }
@@ -1273,14 +1419,15 @@
 
   function exportCSV() {
     if (!results.length) return;
+    var exportResults = getSortedResults();
     var headers = ['City','Median Sale','Avg DOM','Sale vs List','% Sold Above List',
       'PAR Ratio','PAR Pending','PAR Total','Months Supply','Market Type',
       'Price Drops','Off Market 2wk','Homes Sold','New Listings','Avg HH Income','Data Date'];
-    var rows = results.map(function(r) {
+    var rows = exportResults.map(function(r) {
       return [
         r.city, r.median_sale || '', r.median_dom || '', r.sale_to_list || '',
         r.sold_above_list || '', r.par_ratio || '', r.par_pending || '', r.par_total || '',
-        r.months_supply || '', r.supply_label || r.par_label || '', r.price_drops || '',
+        r.months_supply || '', marketTypeLabel(r) || '', r.price_drops || '',
         r.off_market_2wk || '', r.homes_sold || '', r.new_listings || '', r.hh_income || '', r.period || ''
       ];
     });
@@ -1310,6 +1457,7 @@
     heroManifestMeta.innerHTML = 'This source file is only the UI shell. Search and bulk add need the built data files under <span class=\"hero-mini-date\">dist/data or the live Pages site</span>';
     failLoadingOverlay();
   });
+  updateSortUi();
 })();
 </script>
 
