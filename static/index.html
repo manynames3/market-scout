@@ -390,6 +390,20 @@
     tbody tr:hover{background:rgba(255,255,255,.02);}
     td{padding:13px 14px;font-family:var(--mono);font-size:12px;white-space:nowrap;vertical-align:top;}
     td.city-name{font-family:var(--body);font-weight:500;font-size:13px;}
+    .market-link{
+      color:var(--text);
+      text-decoration:none;
+      border-bottom:1px solid transparent;
+      transition:border-color .15s,color .15s;
+    }
+    .market-link:hover{
+      color:var(--accent);
+      border-color:rgba(232,255,71,.55);
+    }
+    .market-pill-link{
+      text-decoration:none;
+      display:inline-flex;
+    }
     .pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-family:var(--mono);}
     .pill-green{background:rgba(71,255,138,.1);color:var(--green);}
     .pill-yellow{background:rgba(255,193,69,.1);color:var(--yellow);}
@@ -1186,6 +1200,37 @@
     return pill(label, cls);
   }
 
+  function externalLink(url, text, cls, title) {
+    if (!url) return escapeHtml(text || '-');
+    var className = cls ? ' class="' + cls + '"' : '';
+    var titleAttr = title ? ' title="' + escapeHtml(title) + '"' : '';
+    return '<a href="' + escapeHtml(url) + '"' + className + titleAttr + ' target="_blank" rel="noopener noreferrer">' + text + '</a>';
+  }
+
+  function marketQueryLabel(result) {
+    return String(result.city || '').trim();
+  }
+
+  function zillowMarketUrl(result) {
+    var query = marketQueryLabel(result);
+    if (!query) return null;
+    var slug = query
+      .toLowerCase()
+      .replace(/,/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    if (!slug) return null;
+    return 'https://www.zillow.com/homes/' + slug + '/';
+  }
+
+  function redfinMarketUrl(result) {
+    var query = marketQueryLabel(result);
+    if (!query) return null;
+    return 'https://www.redfin.com/#search/location=' + encodeURIComponent(query);
+  }
+
   function colorVal(val, goodHigh) {
     if (!val || val === '-') return '<span class="c-muted">-</span>';
     var n = parseFloat(val);
@@ -1208,10 +1253,13 @@
       : (result.dtype === 'zip' ? '<span class="c-muted" title="Not available at zip level">zip N/A</span>' : '-');
     var dom = result.median_dom ? result.median_dom + ' days' : '-';
     var domCls = result.median_dom && result.median_dom > 60 ? 'c-red' : '';
+    var marketLabel = escapeHtml(result.city);
+    var marketType = marketTypeLabel(result);
+    var marketTypePill = marketPill(marketType);
     var row = document.createElement('tr');
     row.innerHTML =
-      '<td class="city-name">' + escapeHtml(result.city) + '</td>' +
-      '<td>' + marketPill(result.supply_label || result.par_label || result.dtype) + '</td>' +
+      '<td class="city-name">' + externalLink(zillowMarketUrl(result), marketLabel, 'market-link', 'Open Zillow search for ' + marketQueryLabel(result)) + '</td>' +
+      '<td>' + externalLink(redfinMarketUrl(result), marketTypePill, 'market-pill-link', 'Open Redfin search for ' + marketQueryLabel(result)) + '</td>' +
       '<td>' + parPill + '</td>' +
       '<td>' + ms + '</td>' +
       '<td><span class="' + domCls + '">' + escapeHtml(dom) + '</span></td>' +
