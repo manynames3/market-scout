@@ -588,6 +588,7 @@
   var shardCache = {};
   var incomeCache = {};
   var manifest = null;
+  var dataLoadError = null;
 
   var cityInput = document.getElementById('cityInput');
   var bulkInput = document.getElementById('bulkInput');
@@ -686,6 +687,14 @@
     updateManifestUi();
     addLoadingLine('Ready!', 100);
     closeLoadingOverlay();
+  }
+
+  function failLoadingOverlay(message) {
+    loadingBar.style.width = '100%';
+    loadingOverlay.style.display = 'none';
+    if (message) {
+      loadingLog.appendChild(document.createTextNode(String(message)));
+    }
   }
 
   function updateManifestUi() {
@@ -862,6 +871,7 @@
   });
 
   function filterSuggestions(q) {
+    if (!ensureDataReady('suggestions')) return;
     var query = q.toLowerCase();
     var starts = [];
     var contains = [];
@@ -919,6 +929,7 @@
   exportBtn.addEventListener('click', exportCSV);
 
   function addMarket(input) {
+    if (!ensureDataReady('add markets')) return;
     var item = null;
     if (typeof input === 'string') {
       var raw = String(input || '').trim();
@@ -1011,6 +1022,7 @@
   }
 
   function addBulkMarkets(raw) {
+    if (!ensureDataReady('bulk add')) return;
     var value = String(raw || '').trim();
     if (!value) {
       setBulkFeedback('Paste a list of markets to add.', 'warn');
@@ -1052,6 +1064,18 @@
   function setBulkFeedback(message, tone) {
     bulkFeedback.textContent = message || '';
     bulkFeedback.className = 'feedback' + (tone ? ' ' + tone : '');
+  }
+
+  function ensureDataReady(action) {
+    if (searchIndex.length) return true;
+    var message = dataLoadError
+      ? 'Market data did not load. This raw static file cannot search by itself. Open the deployed site or preview dist/ over HTTP.'
+      : 'Market data is still loading. Try again in a moment.';
+    setBulkFeedback(message, 'warn');
+    if (action === 'add markets' || action === 'suggestions') {
+      flash(dataLoadError ? 'Open built site or live app' : 'Still loading data');
+    }
+    return false;
   }
 
   function renderSelectionList() {
@@ -1278,10 +1302,13 @@
   }
 
   loadBootstrapData().catch(function(error) {
+    dataLoadError = error;
     addLoadingLine('Failed to load static data.', 100);
     loadingLog.appendChild(document.createTextNode(String(error.message || error)));
-    headerMeta.textContent = 'Static data failed to load';
-    manifestNote.textContent = 'Build artifacts were not found under ./data/';
+    headerMeta.textContent = 'Static data not loaded';
+    manifestNote.textContent = 'Open the deployed site or preview dist/ over HTTP. static/index.html alone cannot query markets.';
+    heroManifestMeta.innerHTML = 'This source file is only the UI shell. Search and bulk add need the built data files under <span class=\"hero-mini-date\">dist/data or the live Pages site</span>';
+    failLoadingOverlay();
   });
 })();
 </script>
