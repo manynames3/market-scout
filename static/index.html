@@ -1228,7 +1228,7 @@
   function redfinMarketUrl(result) {
     var query = marketQueryLabel(result);
     if (!query) return null;
-    return 'https://www.redfin.com/#search/location=' + encodeURIComponent(query);
+    return 'https://www.redfin.com/stingray/do/query-location?location=' + encodeURIComponent(query);
   }
 
   function colorVal(val, goodHigh) {
