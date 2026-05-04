@@ -171,7 +171,7 @@ def _build_redfin_market_url(dataset_key, table_id, display_name, state, region_
     if dataset_key == "zip":
         zip_code = str(region_name or "").strip()
         if zip_code.isdigit() and len(zip_code) == 5:
-            return f"https://www.redfin.com/zipcode/{zip_code}/housing-market"
+            return f"https://www.redfin.com/zipcode/{zip_code}"
         return None
 
     slug_source = region_name or display_name or ""
@@ -180,10 +180,10 @@ def _build_redfin_market_url(dataset_key, table_id, display_name, state, region_
         return None
 
     if dataset_key == "city" and table_id and state:
-        return f"https://www.redfin.com/city/{table_id}/{state}/{slug}/housing-market"
+        return f"https://www.redfin.com/city/{table_id}/{state}/{slug}"
 
     if dataset_key == "county" and table_id and state:
-        return f"https://www.redfin.com/county/{table_id}/{state}/{slug}/housing-market"
+        return f"https://www.redfin.com/county/{table_id}/{state}/{slug}"
 
     return None
 
