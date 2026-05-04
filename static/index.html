@@ -100,6 +100,38 @@
       box-shadow:0 0 0 3px rgba(232,255,71,.08);
     }
     .input-row input::placeholder{color:var(--muted);}
+    .bulk-card{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+    .bulk-input{
+      width:100%;
+      min-height:96px;
+      resize:vertical;
+      background:var(--bg);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:11px 12px;
+      color:var(--text);
+      font-family:var(--mono);
+      font-size:12px;
+      line-height:1.6;
+      outline:none;
+      transition:border-color .2s, box-shadow .2s;
+    }
+    .bulk-input:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px rgba(232,255,71,.08);
+    }
+    .bulk-input::placeholder{color:var(--muted);}
+    .bulk-actions{display:flex;gap:8px;}
+    .bulk-actions .btn-secondary{width:auto;flex:1;}
+    .feedback{
+      min-height:18px;
+      font-family:var(--mono);
+      font-size:11px;
+      line-height:1.6;
+      color:var(--muted);
+    }
+    .feedback.ok{color:var(--green);}
+    .feedback.warn{color:var(--yellow);}
     .btn-add,.btn-run{
       background:var(--accent);
       color:#0a0a0f;
@@ -410,12 +442,20 @@
       <div class="label">Add Markets</div>
       <div class="input-row">
         <div class="input-wrap">
-          <input type="text" id="cityInput" placeholder="Atlanta, GA" maxlength="80" autocomplete="off"/>
+          <input type="text" id="cityInput" placeholder="Atlanta, GA" autocomplete="off"/>
           <div class="dropdown" id="dropdown"></div>
         </div>
         <button class="btn-add" id="addBtn">+ Add</button>
       </div>
       <div class="hint">Search any city, zip code, or county.</div>
+      <div class="bulk-card">
+        <textarea id="bulkInput" class="bulk-input" placeholder="Paste a bulk list like: Philadelphia, MS Brooklyn Park, MN Orange County, CA 90210"></textarea>
+        <div class="bulk-actions">
+          <button class="btn-secondary" id="bulkAddBtn">Add Pasted List</button>
+        </div>
+        <div class="small-note">Bulk paste works with cities, counties, and ZIPs. Cities and counties should include the state.</div>
+        <div class="feedback" id="bulkFeedback"></div>
+      </div>
     </div>
 
     <div>
@@ -544,16 +584,20 @@
   var results = [];
   var searchIndex = [];
   var searchIndexByLookup = {};
+  var bulkLookupTrie = createTrieNode();
   var shardCache = {};
   var incomeCache = {};
   var manifest = null;
 
   var cityInput = document.getElementById('cityInput');
+  var bulkInput = document.getElementById('bulkInput');
   var cityList = document.getElementById('cityList');
   var cityCount = document.getElementById('cityCount');
   var runBtn = document.getElementById('runBtn');
   var clearBtn = document.getElementById('clearBtn');
   var addBtn = document.getElementById('addBtn');
+  var bulkAddBtn = document.getElementById('bulkAddBtn');
+  var bulkFeedback = document.getElementById('bulkFeedback');
   var exportBtn = document.getElementById('exportBtn');
   var logEl = document.getElementById('log');
   var placeholder = document.getElementById('placeholder');
@@ -601,10 +645,35 @@
     return String(text || '').trim().toLowerCase();
   }
 
+  function createTrieNode() {
+    return { children: Object.create(null), item: null, tokenCount: 0 };
+  }
+
+  function tokenizeBulkText(text) {
+    return String(text || '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+  }
+
+  function registerBulkPhrase(phrase, item) {
+    var tokens = tokenizeBulkText(phrase);
+    if (!tokens.length) return;
+    var node = bulkLookupTrie;
+    for (var i = 0; i < tokens.length; i++) {
+      var token = tokens[i];
+      if (!node.children[token]) node.children[token] = createTrieNode();
+      node = node.children[token];
+    }
+    if (!node.item || tokens.length >= node.tokenCount) {
+      node.item = item;
+      node.tokenCount = tokens.length;
+    }
+  }
+
   function registerLookup(item) {
     searchIndexByLookup[slugLookupKey(item.label)] = item;
     searchIndexByLookup[slugLookupKey(item.value)] = item;
     if (item.key) searchIndexByLookup[slugLookupKey(item.key)] = item;
+    registerBulkPhrase(item.label, item);
+    if (item.value && item.value !== item.label) registerBulkPhrase(item.value, item);
   }
 
   async function loadBootstrapData() {
@@ -777,6 +846,17 @@
     debounceTimer = setTimeout(function() { filterSuggestions(q); }, 120);
   });
 
+  bulkInput.addEventListener('input', function() {
+    setBulkFeedback('');
+  });
+
+  bulkInput.addEventListener('keydown', function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      addBulkMarkets(bulkInput.value);
+      e.preventDefault();
+    }
+  });
+
   document.addEventListener('click', function(e) {
     if (!e.target.closest('.input-wrap')) closeDropdown();
   });
@@ -833,19 +913,42 @@
   }
 
   addBtn.addEventListener('click', function() { addMarket(cityInput.value); });
+  bulkAddBtn.addEventListener('click', function() { addBulkMarkets(bulkInput.value); });
   clearBtn.addEventListener('click', clearAll);
   runBtn.addEventListener('click', runAnalysis);
   exportBtn.addEventListener('click', exportCSV);
 
   function addMarket(input) {
-    var item = typeof input === 'string' ? resolveInputToItem(input) : input;
+    var item = null;
+    if (typeof input === 'string') {
+      var raw = String(input || '').trim();
+      item = resolveInputToItem(raw);
+      if (!item) {
+        var parsed = parseBulkMarkets(raw);
+        if (parsed.items.length > 1) {
+          applyBulkMatches(parsed);
+          cityInput.value = '';
+          closeDropdown();
+          return;
+        }
+        if (parsed.items.length === 1 && !parsed.unmatched.length) item = parsed.items[0];
+      }
+    } else {
+      item = input;
+    }
     if (!item) return;
-    var duplicate = marketSelections.some(function(existing) { return existing.key === item.key && existing.type === item.type; });
-    if (duplicate) { flash(item.label + ' already added'); return; }
-    marketSelections.push(item);
+    if (!pushMarketSelection(item)) { flash(item.label + ' already added'); return; }
     cityInput.value = '';
     closeDropdown();
+    setBulkFeedback('');
     renderSelectionList();
+  }
+
+  function pushMarketSelection(item) {
+    var duplicate = marketSelections.some(function(existing) { return existing.key === item.key && existing.type === item.type; });
+    if (duplicate) return false;
+    marketSelections.push(item);
+    return true;
   }
 
   function resolveInputToItem(raw) {
@@ -864,6 +967,91 @@
     if (matches.length === 1) return matches[0];
     flash('Choose a market from suggestions');
     return null;
+  }
+
+  function parseBulkMarkets(raw) {
+    var tokens = tokenizeBulkText(raw);
+    var items = [];
+    var unmatched = [];
+    var seen = Object.create(null);
+    var i = 0;
+
+    while (i < tokens.length) {
+      var node = bulkLookupTrie;
+      var bestItem = null;
+      var bestEnd = i;
+      var j = i;
+
+      while (j < tokens.length && node.children[tokens[j]]) {
+        node = node.children[tokens[j]];
+        j += 1;
+        if (node.item) {
+          bestItem = node.item;
+          bestEnd = j;
+        }
+      }
+
+      if (bestItem) {
+        var seenKey = bestItem.type + '|' + bestItem.key;
+        if (!seen[seenKey]) {
+          seen[seenKey] = true;
+          items.push(bestItem);
+        }
+        i = bestEnd;
+        continue;
+      }
+
+      var start = i;
+      i += 1;
+      while (i < tokens.length && !bulkLookupTrie.children[tokens[i]]) i += 1;
+      unmatched.push(tokens.slice(start, i).join(' '));
+    }
+
+    return { items: items, unmatched: unmatched.filter(Boolean) };
+  }
+
+  function addBulkMarkets(raw) {
+    var value = String(raw || '').trim();
+    if (!value) {
+      setBulkFeedback('Paste a list of markets to add.', 'warn');
+      return;
+    }
+
+    var parsed = parseBulkMarkets(value);
+    if (!parsed.items.length) {
+      setBulkFeedback('Could not match any markets. Use full city/state, county/state, or 5-digit ZIPs.', 'warn');
+      return;
+    }
+
+    applyBulkMatches(parsed);
+    bulkInput.value = '';
+  }
+
+  function applyBulkMatches(parsed) {
+    if (!parsed || !parsed.items || !parsed.items.length) return;
+
+    var added = 0;
+    var skipped = 0;
+    for (var i = 0; i < parsed.items.length; i++) {
+      if (pushMarketSelection(parsed.items[i])) added += 1;
+      else skipped += 1;
+    }
+
+    renderSelectionList();
+
+    var parts = [];
+    parts.push('Added ' + added + ' market' + (added === 1 ? '' : 's'));
+    if (skipped) parts.push(skipped + ' already on the list');
+    if (parsed.unmatched.length) {
+      var sample = parsed.unmatched.slice(0, 4).join(', ');
+      parts.push('Unmatched: ' + sample + (parsed.unmatched.length > 4 ? '…' : ''));
+    }
+    setBulkFeedback(parts.join(' • '), parsed.unmatched.length ? 'warn' : 'ok');
+  }
+
+  function setBulkFeedback(message, tone) {
+    bulkFeedback.textContent = message || '';
+    bulkFeedback.className = 'feedback' + (tone ? ' ' + tone : '');
   }
 
   function renderSelectionList() {
@@ -894,6 +1082,7 @@
     marketSelections = [];
     results = [];
     renderSelectionList();
+    setBulkFeedback('');
     resultsBody.innerHTML = '';
     resultsSection.classList.remove('on');
     placeholder.style.display = 'flex';
