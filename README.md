@@ -38,6 +38,14 @@ Market Scout is designed to compress the early market-screening workflow into on
 Instead of opening each market one at a time, the app helps you rank a shortlist first and
 only drill deeper after the numbers tell you where to focus.
 
+It also cuts down the time spent sorting through leads and deciding which ones are actually
+worth chasing. Buying is not the finish line. Exiting is.
+
+A deal that looks fine on paper can fall apart quickly if it sits in a sluggish market where
+inventory is stacking up and homes are lingering for months. Easy in, hard out is not a
+strategy. Market Scout helps surface those conditions earlier, before more time gets wasted
+on the wrong markets.
+
 ### 1. Build a shortlist quickly
 
 Bulk paste support lets you drop in an entire list of candidate markets at once and run a
