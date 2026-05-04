@@ -1226,9 +1226,7 @@
   }
 
   function redfinMarketUrl(result) {
-    var query = marketQueryLabel(result);
-    if (!query) return null;
-    return 'https://www.redfin.com/stingray/do/query-location?location=' + encodeURIComponent(query);
+    return result && result.redfin_url ? result.redfin_url : null;
   }
 
   function colorVal(val, goodHigh) {
@@ -1259,7 +1257,7 @@
     var row = document.createElement('tr');
     row.innerHTML =
       '<td class="city-name">' + externalLink(zillowMarketUrl(result), marketLabel, 'market-link', 'Open Zillow search for ' + marketQueryLabel(result)) + '</td>' +
-      '<td>' + externalLink(redfinMarketUrl(result), marketTypePill, 'market-pill-link', 'Open Redfin search for ' + marketQueryLabel(result)) + '</td>' +
+      '<td>' + externalLink(redfinMarketUrl(result), marketTypePill, 'market-pill-link', 'Open Redfin housing market for ' + marketQueryLabel(result)) + '</td>' +
       '<td>' + parPill + '</td>' +
       '<td>' + ms + '</td>' +
       '<td><span class="' + domCls + '">' + escapeHtml(dom) + '</span></td>' +

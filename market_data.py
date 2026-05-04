@@ -10,7 +10,9 @@ import email.utils
 import gzip
 import json
 import os
+import re
 import shutil
+import unicodedata
 import urllib.request
 from pathlib import Path
 
@@ -155,6 +157,37 @@ def _record_query_value(dataset_key, key, record):
     return label
 
 
+def _slugify_redfin_segment(value):
+    normalized = unicodedata.normalize("NFKD", value or "")
+    ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = ascii_value.replace("&", " and ")
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", slug)
+    slug = re.sub(r"-{2,}", "-", slug).strip("-")
+    return slug
+
+
+def _build_redfin_market_url(dataset_key, table_id, display_name, state, region_name):
+    state = (state or "").upper()
+    if dataset_key == "zip":
+        zip_code = str(region_name or "").strip()
+        if zip_code.isdigit() and len(zip_code) == 5:
+            return f"https://www.redfin.com/zipcode/{zip_code}/housing-market"
+        return None
+
+    slug_source = region_name or display_name or ""
+    slug = _slugify_redfin_segment(slug_source)
+    if not slug:
+        return None
+
+    if dataset_key == "city" and table_id and state:
+        return f"https://www.redfin.com/city/{table_id}/{state}/{slug}/housing-market"
+
+    if dataset_key == "county" and table_id and state:
+        return f"https://www.redfin.com/county/{table_id}/{state}/{slug}/housing-market"
+
+    return None
+
+
 def parse_dataset_file(local_path, dataset_key):
     """
     Parse a Redfin market tracker gzip file into a latest-row-per-market lookup dict.
@@ -191,6 +224,7 @@ def parse_dataset_file(local_path, dataset_key):
         property_type_col = cols.index("PROPERTY_TYPE")
         state_col = cols.index("STATE_CODE") if "STATE_CODE" in cols else None
         duration_col = cols.index("PERIOD_DURATION") if "PERIOD_DURATION" in cols else None
+        table_id_col = cols.index("TABLE_ID") if "TABLE_ID" in cols else None
 
         if dataset_key == "city":
             key_col = cols.index("CITY") if "CITY" in cols else cols.index("REGION")
@@ -209,6 +243,7 @@ def parse_dataset_file(local_path, dataset_key):
             region_raw = _clean(row[key_col]) if key_col < len(row) else ""
             state = _clean(row[state_col]).upper() if state_col is not None and state_col < len(row) else ""
             period = _clean(row[period_col])
+            table_id = _clean(row[table_id_col]) if table_id_col is not None and table_id_col < len(row) else ""
 
             if not region_raw:
                 continue
@@ -216,6 +251,7 @@ def parse_dataset_file(local_path, dataset_key):
             if dataset_key == "city":
                 primary = region_raw.lower()
                 key = f"{primary}_{state}" if state else primary
+                redfin_region = region_raw
             elif dataset_key == "zip":
                 zip_number = (
                     region_raw.replace("Zip Code:", "").replace("zip code:", "").strip()
@@ -224,15 +260,18 @@ def parse_dataset_file(local_path, dataset_key):
                     continue
                 primary = zip_number
                 key = zip_number
+                redfin_region = zip_number
             elif dataset_key == "county":
                 county_name = region_raw.lower().strip()
                 if "," in county_name:
                     county_name = county_name.split(",")[0].strip()
                 primary = county_name
                 key = f"{county_name}_{state}" if state else county_name
+                redfin_region = region_raw.split(",", 1)[0].strip()
             else:
                 primary = region_raw.lower()
                 key = f"{primary}_{state}" if state else primary
+                redfin_region = region_raw
 
             if key in latest and period <= latest[key]["period"]:
                 continue
@@ -330,6 +369,14 @@ def parse_dataset_file(local_path, dataset_key):
                 "type": dataset_key,
                 "query": _record_query_value(dataset_key, key, {"state": state}),
                 "display_name": _clean(row[key_col]),
+                "table_id": table_id or None,
+                "redfin_url": _build_redfin_market_url(
+                    dataset_key,
+                    table_id,
+                    _clean(row[key_col]),
+                    state,
+                    redfin_region,
+                ),
                 "state": state,
                 "period": period,
                 "median_sale": median_sale_str,
