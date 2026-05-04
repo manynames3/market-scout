@@ -26,6 +26,46 @@ Metrics include:
 | Off Market in 2 Weeks % | Speed of inventory absorption |
 | Median Household Income | Census ACS 5-year estimate |
 
+## How The Workflow Saves Time
+
+Market Scout is designed to compress the early market-screening workflow into one place:
+
+1. Paste a bulk list of cities, ZIP codes, or counties you want to compare.
+2. Run one scan to pull the same Redfin-backed metrics for every market in the list.
+3. Sort the table by supply, PAR ratio, days on market, price drops, or any other signal.
+4. Click straight into Zillow or Redfin once a market looks promising.
+
+Instead of opening each market one at a time, the app helps you rank a shortlist first and
+only drill deeper after the numbers tell you where to focus.
+
+### 1. Build a shortlist quickly
+
+Bulk paste support lets you drop in an entire list of candidate markets at once and run a
+single comparison pass.
+
+![Bulk shortlist workflow](docs/images/market-scout-bulk-shortlist-workflow.png)
+
+### 2. Sort to find the most promising markets
+
+Once results load, the table can be sorted by the exact signals you care about: inventory
+tightness, demand intensity, sale-to-list strength, price drops, or speed of absorption.
+
+![Sorted results table](docs/images/market-scout-sorted-results-table.png)
+
+### 3. Jump straight into follow-up research
+
+The results table is not a dead-end report. It is meant to be a triage layer before deeper
+listing and inventory review.
+
+- Click the **Market** column to open the location on Zillow.
+- Click the **Market Type** pill to open the location page on Redfin.
+- That makes it easy to go straight from ranked comparison into listing-level inventory and
+  market context for the markets that survive your first pass.
+
+![Zillow deep link from market name](docs/images/market-scout-zillow-link.png)
+
+![Redfin deep link from market type pill](docs/images/market-scout-redfin-link.png)
+
 ## Project Modes
 
 This repository currently supports two practical modes:
