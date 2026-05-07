@@ -1,161 +1,89 @@
 # Market Scout
 
-Market Scout is a real estate market analytics tool powered by Redfin public data. It can
-search US cities, ZIP codes, and counties and surface the metrics that matter most for
-evaluating a housing market.
+Market Scout is a real estate market intelligence app that turns Redfin public market-tracker
+data into a fast comparison workflow for US cities, ZIP codes, and counties. I first built it
+as a local Python/Flask tool, then refactored it into a static web product backed by a Python
+build pipeline, sharded JSON artifacts, GitHub Actions refreshes, and Cloudflare Pages hosting.
 
-The project started as a local Python/Flask app, later gained a macOS wrapper, and now has
-a static web deployment path designed for very low monthly cost.
+- Live demo: [market-scout-anl.pages.dev](https://market-scout-anl.pages.dev/)
+- Architecture docs: [docs/architecture.md](docs/architecture.md)
+- ADR index: [docs/adrs/README.md](docs/adrs/README.md)
 
-## What It Does
+## Screenshots
 
-Market Scout pulls market-level housing data from Redfin's public market tracker datasets
-and presents it in a simpler form for quick comparison.
+Market shortlist workflow:
 
-Metrics include:
+![Market Scout shortlist workflow](docs/images/market-scout-bulk-shortlist-workflow.png)
 
-| Metric | What It Tells You |
-|--------|-------------------|
-| Median Sale Price | Current market price level |
-| Months of Supply | Inventory tightness |
-| Pending-to-Available Ratio (PAR) | Demand intensity |
-| Median Days on Market | How fast homes are selling |
-| Sale-to-List % | Whether homes sell above or below ask |
-| Sold Above List % | Share of homes facing bidding pressure |
-| Price Drop % | Share of listings with reductions |
-| Off Market in 2 Weeks % | Speed of inventory absorption |
-| Median Household Income | Census ACS 5-year estimate |
+Sorted comparison results:
 
-## How The Workflow Saves Time
+![Market Scout results table](docs/images/market-scout-sorted-results-table.png)
 
-Market Scout is designed to compress the early market-screening workflow into one place:
+## About
 
-1. Paste a bulk list of cities, ZIP codes, or counties you want to compare.
-2. Run one scan to pull the same Redfin-backed metrics for every market in the list.
-3. Sort the table by supply, PAR ratio, days on market, price drops, or any other signal.
-4. Click straight into Zillow or Redfin once a market looks promising.
+Market Scout is designed to help an operator, investor, or analyst answer a simple question
+quickly: which markets are worth deeper attention, and which ones should be filtered out early.
 
-Instead of opening each market one at a time, the app helps you rank a shortlist first and
-only drill deeper after the numbers tell you where to focus.
+What the product does:
 
-It also cuts down the time spent sorting through leads and deciding which ones are actually
-worth chasing. Buying is not the finish line. Exiting is.
+- compares cities, ZIP codes, and counties side by side
+- surfaces pricing, supply, speed, and demand signals from Redfin public data
+- supports bulk market paste, sortable results, and CSV export
+- links directly into Zillow and Redfin once a market survives the first-pass screen
+- enriches results with Census ACS household-income context
 
-A deal that looks fine on paper can fall apart quickly if it sits in a sluggish market where
-inventory is stacking up and homes are lingering for months. Easy in, hard out is not a
-strategy. Market Scout helps surface those conditions earlier, before more time gets wasted
-on the wrong markets.
+Why it exists:
 
-### 1. Build a shortlist quickly
+- buying is not the finish line; exiting is
+- a deal that looks good in isolation can become hard to unwind in a slow market with stacked
+  inventory and weak absorption
+- Market Scout reduces the time spent sorting through leads by surfacing those conditions early
 
-Bulk paste support lets you drop in an entire list of candidate markets at once and run a
-single comparison pass.
+## Tech Stack
 
-![Bulk shortlist workflow](docs/images/market-scout-bulk-shortlist-workflow.png)
+| Area | Tools |
+| --- | --- |
+| Frontend | HTML, CSS, vanilla JavaScript |
+| Data pipeline | Python 3, `gzip`, JSON artifact generation |
+| Local runtime | Flask |
+| Automation | GitHub Actions |
+| Hosting | Cloudflare Pages |
+| Data sources | Redfin Market Tracker, US Census ACS |
 
-### 2. Sort to find the most promising markets
+## Engineering Highlights
 
-Once results load, the table can be sorted by the exact signals you care about: inventory
-tightness, demand intensity, sale-to-list strength, price drops, or speed of absorption.
+- Refactored a local Flask workflow into a static web architecture to hit a near-zero monthly
+  hosting target without changing the core product use case.
+- Built a shared Python parsing layer in [market_data.py](market_data.py) that is reused by both
+  the legacy Flask runtime and the static-site build pipeline.
+- Streams large Redfin source files to disk, keeps only the latest `All Residential` row per
+  market, and emits compact browser-friendly artifacts instead of shipping raw datasets to the
+  frontend.
+- Uses a prebuilt search index plus per-state JSON shards so the deployed site can stay static
+  while still supporting fast market lookup across cities, ZIP codes, and counties.
+- Preserves product-oriented UX features in a no-backend deployment model: bulk paste, sortable
+  results, CSV export, upstream freshness metadata, and Zillow/Redfin drill-through links.
+- Keeps the original local app path available for development and comparison while the public
+  production path runs as a static deployment.
 
-![Sorted results table](docs/images/market-scout-sorted-results-table.png)
+## Architecture
 
-### 3. Jump straight into follow-up research
+The production system is intentionally split between build-time data preparation and a static
+browser runtime:
 
-The results table is not a dead-end report. It is meant to be a triage layer before deeper
-listing and inventory review.
+- Redfin data is downloaded and normalized at build time by [scripts/build_static_data.py](scripts/build_static_data.py)
+- the deployable site is assembled by [scripts/build_static_site.py](scripts/build_static_site.py)
+- Cloudflare Pages serves static assets from `dist/`
+- the browser loads a search index plus lazy per-state market shards from `dist/data/`
+- household-income lookups are fetched from the Census API at runtime in the browser
 
-- Click the **Market** column to open the location on Zillow.
-- Click the **Market Type** pill to open the location page on Redfin.
-- That makes it easy to go straight from ranked comparison into listing-level inventory and
-  market context for the markets that survive your first pass.
+For the full system view, see:
 
-![Zillow deep link from market name](docs/images/market-scout-zillow-link.png)
+- [docs/architecture.md](docs/architecture.md)
+- [docs/adrs/README.md](docs/adrs/README.md)
+- [docs/cloudflare-pages-setup.md](docs/cloudflare-pages-setup.md)
 
-![Redfin deep link from market type pill](docs/images/market-scout-redfin-link.png)
-
-## Project Modes
-
-This repository currently supports two practical modes:
-
-### 1. Local Flask app
-
-Good for development and local use.
-
-- loads Redfin data into memory
-- serves the UI from Flask
-- supports local caching on disk
-
-### 2. Static web build
-
-Good for public hosting and phones.
-
-- prebuilds compact Redfin artifacts
-- serves a static frontend
-- can be hosted cheaply on Cloudflare Pages
-
-## Feature Evolution
-
-Market Scout was not built as a one-shot demo. It evolved in stages as the product shape,
-data volume, and hosting constraints became clearer.
-
-### Initial version
-
-- local Python/Flask application
-- market comparison across cities, ZIP codes, and counties
-- Redfin-powered comparison metrics for price, supply, competition, and speed
-- Census-backed household income enrichment
-
-### Desktop-friendly version
-
-- macOS wrapper for local use without running Flask manually
-- local cache reuse to avoid repeated Redfin downloads
-- simpler UI for side-by-side market scans
-
-### Web migration
-
-- static site architecture for low-cost public hosting
-- generated JSON search index and per-state market shards
-- mobile-friendly browser access for phone and tablet use
-- Cloudflare Pages deployment path
-
-### Product and UX improvements
-
-- clearer product-facing positioning instead of developer/demo copy
-- visible Redfin source freshness based on upstream file metadata
-- bulk market paste support for cities, counties, and ZIPs
-- sortable result columns for market ranking workflows
-- CSV export of analysis results
-- better empty/loading/error states for static preview vs deployed site
-
-### Infra and data pipeline improvements
-
-- Redfin source files streamed to disk instead of loaded eagerly into memory
-- shared market parsing layer reused by both the Flask app and static build
-- deployable `dist/` site assembly step separated from raw data generation
-- GitHub Actions workflow for scheduled monthly rebuilds
-- documented Cloudflare Pages and low-cost hosting decision process
-
-## Why The Web Version Changed
-
-The original local architecture was fine on a laptop, but it is a poor fit for cheap web
-hosting because it assumes:
-
-- a long-lived Python process
-- local filesystem caching
-- startup-time dataset downloads
-- in-memory search structures
-
-The web version therefore uses:
-
-- Cloudflare Pages for the frontend
-- prebuilt JSON artifacts for search and market lookups
-- GitHub Actions for optional scheduled rebuilds and deploys
-
-For the detailed decision record, see
-[docs/adr/0001-web-hosting-and-cost-strategy.md](docs/adr/0001-web-hosting-and-cost-strategy.md).
-
-## Local App Setup
+## Local Development
 
 ### Requirements
 
@@ -175,7 +103,7 @@ Or use the included setup script:
 bash setup.sh
 ```
 
-### Run the local app
+### Run the local Flask app
 
 ```bash
 python3 app.py
@@ -185,7 +113,7 @@ Then open:
 
 - [http://127.0.0.1:8080](http://127.0.0.1:8080)
 
-On macOS you can also use the app wrapper or launcher script:
+On macOS you can also use the launcher:
 
 ```bash
 bash launch.sh
@@ -193,39 +121,30 @@ bash launch.sh
 
 ## Static Web Build
 
-The static web path is split into two steps.
-
-### Phase 1: Build static data artifacts
+### 1. Build static data artifacts
 
 ```bash
 python3 scripts/build_static_data.py
 ```
 
-This:
+This step:
 
 - downloads or reuses cached Redfin source files
-- keeps only the latest row per market
-- emits compact browser-friendly artifacts under `generated/web-data/`
+- fetches upstream metadata such as `Last-Modified`
+- keeps only the latest row per supported market
+- writes manifests, a search index, and per-state market shards under `generated/web-data/`
 
-Default raw cache location:
-
-- `.cache/redfin/`
-
-Generated artifact directory:
-
-- `generated/web-data/`
-
-### Phase 2: Assemble the deployable site
+### 2. Assemble the deployable site
 
 ```bash
 python3 scripts/build_static_site.py
 ```
 
-This builds:
+This step:
 
-- frontend assets from `static/`
-- final deployable site under `dist/`
-- runtime data copied into `dist/data/`
+- copies frontend assets from `static/`
+- copies generated artifacts into `dist/data/`
+- produces a deployable static site under `dist/`
 
 ### Preview locally
 
@@ -237,75 +156,67 @@ Then open:
 
 - [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-## Cloudflare Pages Setup
+## Deployment Model
+
+### Cloudflare Pages
 
 If Cloudflare Pages is building directly from GitHub, use:
 
 - Build command: `bash scripts/build_cloudflare_pages.sh`
 - Build output directory: `dist`
 
-That script simply runs the data build and site assembly steps in order:
+### Scheduled refreshes
 
-```bash
-bash scripts/build_cloudflare_pages.sh
-```
-
-### Why not `exit 0`
-
-Cloudflare's docs often show `exit 0` for static projects when the output directory already
-exists and Pages does not need to build anything itself.
-
-That does **not** work for this repository when Cloudflare is building from source, because:
-
-- `dist/` is not committed
-- `dist/` is created at build time
-- skipping the build means there is nothing to publish
-
-If Cloudflare runs `exit 0` here, deployment fails with:
-
-- `Output directory "dist" not found`
-
-## Monthly Redfin Refreshes
-
-This repository includes a GitHub Actions workflow at
-[`/.github/workflows/static-site.yml`](.github/workflows/static-site.yml) that can rebuild
-the site monthly from fresh Redfin data.
-
-Monthly schedule:
-
-- first day of the month at `12:00 UTC`
+The repository includes a GitHub Actions workflow at
+[.github/workflows/static-site.yml](.github/workflows/static-site.yml) that can rebuild the site
+from the latest Redfin public files on a monthly schedule.
 
 Important distinction:
 
-- Cloudflare Git integration alone can keep the site online
-- GitHub Actions is what enables scheduled monthly rebuilds from Redfin without a manual
-  code change or redeploy
+- Cloudflare Git integration can keep the site deployed
+- GitHub Actions is what enables unattended monthly data rebuilds and deploys
 
-To let GitHub Actions publish the rebuilt site to Cloudflare Pages, configure:
+## Data Handling
 
-- secret `CLOUDFLARE_API_TOKEN`
-- secret `CLOUDFLARE_ACCOUNT_ID`
-- variable `CLOUDFLARE_PAGES_PROJECT`
+- Production deployment is a static site; the app does not implement user accounts or its own
+  server-side database.
+- Market metrics come from Redfin public market-tracker datasets.
+- Household-income values are fetched from the US Census ACS API at runtime in the browser.
+- The local Flask app can fetch Redfin and Census data directly for local/dev usage.
 
-If those values are not configured:
+## Limitations
 
-- the site can still work
-- but the monthly GitHub Actions rebuild will not be able to deploy refreshed data to
-  Cloudflare Pages
+- Freshness follows the latest public Redfin release and rebuild cadence; this is not live MLS
+  data.
+- ZIP codes are smaller geographic areas, so some metrics such as months of supply or price
+  drops can be unavailable or less stable than city- or county-level readings.
+- Household-income values are ACS survey estimates, not real-time local earnings data.
+- The public web version is intentionally static, so server-side personalization and persistent
+  user state are out of scope for the current architecture.
 
-For setup details, see
-[docs/cloudflare-pages-setup.md](docs/cloudflare-pages-setup.md).
+## Project Structure
 
-## Data Sources
+```text
+app.py                             Legacy/local Flask app
+market_data.py                     Shared dataset parsing and artifact generation logic
+static/index.html                  Static production UI
+scripts/build_static_data.py       Build Redfin-derived web artifacts
+scripts/build_static_site.py       Assemble deployable site into dist/
+scripts/build_cloudflare_pages.sh  Cloudflare Pages build entrypoint
+.github/workflows/static-site.yml  Scheduled build/deploy workflow
+docs/architecture.md               Architecture overview and container diagram
+docs/adrs/                         Concise architecture decision records
+docs/web-migration-plan.md         Migration notes
+docs/cloudflare-pages-setup.md     Deployment setup notes
+```
 
-- [Redfin Data Center](https://www.redfin.com/news/data-center/)
-- [US Census Bureau ACS 5-year estimates](https://www.census.gov/programs-surveys/acs)
+## Additional Documentation
 
-## Additional Docs
-
+- [docs/architecture.md](docs/architecture.md)
+- [docs/adrs/README.md](docs/adrs/README.md)
+- [docs/adr/0001-web-hosting-and-cost-strategy.md](docs/adr/0001-web-hosting-and-cost-strategy.md)
 - [docs/web-migration-plan.md](docs/web-migration-plan.md)
 - [docs/cloudflare-pages-setup.md](docs/cloudflare-pages-setup.md)
-- [docs/adr/0001-web-hosting-and-cost-strategy.md](docs/adr/0001-web-hosting-and-cost-strategy.md)
 
 ## License
 
