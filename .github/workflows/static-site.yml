@@ -28,6 +28,11 @@ on:
         required: false
         default: false
         type: boolean
+      deploy:
+        description: "Deploy the built static site to Cloudflare Pages"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: static-site-${{ github.ref }}
@@ -73,7 +78,7 @@ jobs:
     name: Deploy to Cloudflare Pages
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
     permissions:
       contents: read
       deployments: write
@@ -86,11 +91,12 @@ jobs:
       - name: Check Cloudflare deployment configuration
         if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == '' || env.CLOUDFLARE_PAGES_PROJECT == ''
         run: |
-          echo "Cloudflare deployment configuration is incomplete."
-          echo "Skipping deploy because one or more of these are missing:"
+          echo "::error::Cloudflare deployment configuration is incomplete."
+          echo "One or more of these are missing:"
           echo "- CLOUDFLARE_API_TOKEN"
           echo "- CLOUDFLARE_ACCOUNT_ID"
           echo "- CLOUDFLARE_PAGES_PROJECT"
+          exit 1
 
       - name: Download static site artifact
         if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != '' && env.CLOUDFLARE_PAGES_PROJECT != ''
