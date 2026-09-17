@@ -1,11 +1,15 @@
 # Market Scout
 
-Market Scout is a real estate market analytics tool powered by Redfin public data. It can
-search US cities, ZIP codes, and counties and surface the metrics that matter most for
-evaluating a housing market.
+Market Scout is a real estate market intelligence app with a responsive web client and a
+native Android client. It turns Redfin public market-tracker data into searchable, sortable
+comparisons of US cities, ZIP codes, and counties, so investors can screen opportunities
+before spending time on deeper listing research.
 
 The project started as a local Python/Flask app, later gained a macOS wrapper, and now has
-a static web deployment path designed for very low monthly cost.
+a static web deployment path and native Android experience designed for very low monthly
+cost.
+
+**[Live demo](https://market-scout-anl.pages.dev/)** · **[Android client docs](docs/android.md)**
 
 ## What It Does
 
@@ -25,6 +29,13 @@ Metrics include:
 | Price Drop % | Share of listings with reductions |
 | Off Market in 2 Weeks % | Speed of inventory absorption |
 | Median Household Income | Census ACS 5-year estimate |
+
+## Tech Stack
+
+- **Android:** Native Java, Android SDK, Gradle
+- **Web:** Python, Flask, HTML, CSS, and JavaScript
+- **Data:** Redfin public market-tracker files, generated sharded JSON, and Census ACS
+- **Delivery:** Cloudflare Pages and GitHub Actions
 
 ## How The Workflow Saves Time
 
