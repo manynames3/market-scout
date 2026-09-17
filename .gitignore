@@ -3,3 +3,7 @@
 generated/
 __pycache__/
 dist/
+android/.gradle/
+android/local.properties
+android/**/build/
+android/.idea/

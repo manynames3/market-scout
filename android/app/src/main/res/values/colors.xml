@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="market_scout_background">#0A0A0F</color>
+    <color name="market_scout_surface">#111118</color>
+    <color name="market_scout_surface_2">#151520</color>
+    <color name="market_scout_border">#272736</color>
+    <color name="market_scout_accent">#E8FF47</color>
+    <color name="market_scout_text">#E8E8F0</color>
+    <color name="market_scout_muted">#88889D</color>
+    <color name="market_scout_green">#47FF8A</color>
+    <color name="market_scout_yellow">#FFC145</color>
+    <color name="market_scout_red">#FF6B6B</color>
+</resources>

@@ -94,6 +94,25 @@ Good for public hosting and phones.
 - serves a static frontend
 - can be hosted cheaply on Cloudflare Pages
 
+### 3. Native Android app
+
+The Android client lives in its own `android/` Gradle project. It uses native Android views
+and Java rather than embedding the website, but reads the same static Redfin artifacts from
+Cloudflare Pages. That keeps the web and mobile clients independently deployable while
+preserving one data contract and the same low-cost hosting model. The app has no API keys,
+backend service, or additional production dependency.
+
+Build or install a debug APK with:
+
+```bash
+cd android
+./gradlew assembleDebug
+./gradlew installDebug
+```
+
+See [docs/android.md](docs/android.md) for the mobile architecture, runtime flow, and
+release boundary.
+
 ## Feature Evolution
 
 Market Scout was not built as a one-shot demo. It evolved in stages as the product shape,
