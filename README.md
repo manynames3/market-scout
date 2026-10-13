@@ -1,11 +1,26 @@
 # Market Scout
 
-Market Scout is a real estate market analytics tool powered by Redfin public data. It can
-search US cities, ZIP codes, and counties and surface the metrics that matter most for
-evaluating a housing market.
+Market Scout is a real estate market intelligence app with a responsive web client and a
+native Android client. It turns Redfin public market-tracker data into searchable, sortable
+comparisons of US cities, ZIP codes, and counties, so investors can screen opportunities
+before spending time on deeper listing research.
 
 The project started as a local Python/Flask app, later gained a macOS wrapper, and now has
-a static web deployment path designed for very low monthly cost.
+a static web deployment path and native Android experience designed for very low monthly
+cost.
+
+**[Live demo](https://market-scout-anl.pages.dev/)** · **[Android client docs](docs/android.md)**
+
+## Engineering Highlights
+
+- One Python parsing layer feeds the local Flask runtime and compact static web artifacts.
+- Web and native Android clients share the public JSON contract and load market shards on demand.
+- Android research persists locally; cached snapshots provide offline access without a paid backend.
+- Frozen scan inputs and cancelable requests prevent stale callbacks from overwriting new research.
+- Android CI runs fixture tests, lint, and emulator checks and uploads installable APKs and reports.
+
+See the [architecture overview and container diagram](docs/architecture.md) and
+[architecture decisions](docs/adrs/README.md) for the implementation boundaries and tradeoffs.
 
 ## What It Does
 
@@ -25,6 +40,13 @@ Metrics include:
 | Price Drop % | Share of listings with reductions |
 | Off Market in 2 Weeks % | Speed of inventory absorption |
 | Median Household Income | Census ACS 5-year estimate |
+
+## Tech Stack
+
+- **Android:** Native Java, Android SDK, Gradle
+- **Web:** Python, Flask, HTML, CSS, and JavaScript
+- **Data:** Redfin public market-tracker files, generated sharded JSON, and Census ACS
+- **Delivery:** Cloudflare Pages and GitHub Actions
 
 ## How The Workflow Saves Time
 
@@ -76,7 +98,7 @@ listing and inventory review.
 
 ## Project Modes
 
-This repository currently supports two practical modes:
+This repository currently supports three practical modes:
 
 ### 1. Local Flask app
 
@@ -93,6 +115,35 @@ Good for public hosting and phones.
 - prebuilds compact Redfin artifacts
 - serves a static frontend
 - can be hosted cheaply on Cloudflare Pages
+
+### 3. Native Android app
+
+The Android client lives in its own `android/` Gradle project. It uses native Android views
+and Java rather than embedding the website, but reads the same static Redfin artifacts from
+Cloudflare Pages. That keeps the web and mobile clients independently deployable while
+preserving one data contract and the same low-cost hosting model. The app has no API keys,
+backend service, or additional production dependency.
+
+- Saved research survives rotation and app restarts, including drafts, results, sorting, and filters.
+- Named lists, favorites, and notes keep promising markets ready for follow-up.
+- Compact result cards expand into detailed metrics; compare two or three markets side by side.
+- Canceling or switching lists cancels the scan and rejects obsolete callbacks.
+- Downloaded data is cached on disk for offline use, with its snapshot and reporting period visible.
+- CI runs unit tests, lint, and emulator tests and provides a downloadable debug APK.
+
+Signed APK and App Bundle builds are configured for owner-provided signing keys. See the
+[Android release guide](docs/android.md#release-boundary) for the credential and build setup.
+
+Build or install a debug APK with:
+
+```bash
+cd android
+./gradlew assembleDebug
+./gradlew installDebug
+```
+
+See [docs/android.md](docs/android.md) for the mobile architecture, runtime flow, and
+release boundary.
 
 ## Feature Evolution
 
@@ -303,6 +354,9 @@ For setup details, see
 
 ## Additional Docs
 
+- [docs/architecture.md](docs/architecture.md)
+- [docs/adrs/README.md](docs/adrs/README.md)
+- [docs/android.md](docs/android.md)
 - [docs/web-migration-plan.md](docs/web-migration-plan.md)
 - [docs/cloudflare-pages-setup.md](docs/cloudflare-pages-setup.md)
 - [docs/adr/0001-web-hosting-and-cost-strategy.md](docs/adr/0001-web-hosting-and-cost-strategy.md)

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="market_input" type="id" />
+    <item name="bulk_input" type="id" />
+    <item name="add_market" type="id" />
+    <item name="add_pasted_list" type="id" />
+    <item name="shortlist_toggle" type="id" />
+    <item name="saved_lists" type="id" />
+    <item name="save_list" type="id" />
+    <item name="results_section" type="id" />
+    <item name="results_list" type="id" />
+    <item name="run_analysis" type="id" />
+    <item name="sort_results" type="id" />
+    <item name="sort_direction" type="id" />
+    <item name="filter_results" type="id" />
+    <item name="compare_markets" type="id" />
+    <item name="export_csv" type="id" />
+</resources>
