@@ -599,6 +599,7 @@ public final class MainActivity extends Activity {
         metrics(details, "SALE VS LIST", display(result.saleToList), "SOLD ABOVE LIST", display(result.soldAboveList));
         metrics(details, "PRICE DROPS", display(result.priceDrops), "OFF MKT 2WK", display(result.offMarketTwoWeeks));
         metrics(details, "MEDIAN HH INCOME", display(result.householdIncome), "HOMES SOLD", display(result.homesSold));
+        metrics(details, "PAR PENDING", display(result.parPending), "PAR TOTAL", display(result.parTotal));
         if (!"OK".equals(result.status)) {
             Button retry = button("Retry " + result.city, false);
             retry.setEnabled(!scan.isActive() && index != null);
@@ -764,7 +765,11 @@ public final class MainActivity extends Activity {
         if (results.isEmpty()) { message("No visible results to export.", true); return; }
         StringBuilder csv = new StringBuilder("Market,Market Type,PAR Ratio,Months Supply,Median DOM,Median Sale,Sale vs List,Sold Above List,Price Drops,Off Market 2wk,Median HH Income,Reporting Period,Favorite,Notes\n");
         for (MarketResult result : results) {
-            String[] cells = {result.city, result.marketTypeLabel(), par(result), months(result.monthsSupply),
+            String ratio = par(result);
+            if (result.parPending != null && result.parTotal != null) {
+                ratio += " (" + result.parPending + "p/" + result.parTotal + "t)";
+            }
+            String[] cells = {result.city, result.marketTypeLabel(), ratio, months(result.monthsSupply),
                     display(result.medianDom), display(result.medianSale), display(result.saleToList), display(result.soldAboveList),
                     display(result.priceDrops), display(result.offMarketTwoWeeks), display(result.householdIncome),
                     display(result.period), String.valueOf(state.favorites.contains(result.identity())), state.notes.getOrDefault(result.identity(), "")};

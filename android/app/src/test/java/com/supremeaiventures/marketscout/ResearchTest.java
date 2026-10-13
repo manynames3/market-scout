@@ -91,7 +91,9 @@ public class ResearchTest {
         ResearchState original = new ResearchState();
         SearchItem item = market("Atlanta, GA", "city", "Atlanta, GA");
         original.selections.add(item);
-        MarketResult reading = result("Atlanta, GA", "$446,000", 5.5);
+        MarketResult reading = MarketResult.fromJson(new JSONObject().put("median_sale", "$446,000")
+                .put("months_supply", 5.5).put("par_pending", 12).put("par_total", 35)
+                .put("period", "2026-03-31"), item);
         reading.householdIncome = "$70,000";
         original.results.add(reading);
         original.favorites.add(item.identity());
@@ -110,6 +112,9 @@ public class ResearchTest {
         ResearchState restored = ResearchState.fromJson(new JSONObject(original.toJson().toString()));
         assertEquals(item.identity(), restored.selections.get(0).identity());
         assertEquals("$70,000", restored.results.get(0).householdIncome);
+        assertEquals(Integer.valueOf(12), restored.results.get(0).parPending);
+        assertEquals(Integer.valueOf(35), restored.results.get(0).parTotal);
+        assertEquals("2026-03-31", restored.results.get(0).period);
         assertEquals(original.notes, restored.notes);
         assertEquals(original.favorites, restored.favorites);
         assertEquals(original.compared, restored.compared);
