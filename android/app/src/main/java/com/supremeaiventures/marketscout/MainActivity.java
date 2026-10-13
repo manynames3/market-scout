@@ -915,7 +915,13 @@ public final class MainActivity extends Activity {
         view.setTypeface(bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT); return view;
     }
     private Button button(String title, boolean primary) {
-        Button button = new Button(this); button.setText(title); button.setAllCaps(false);
+        Button button = new Button(this) {
+            @Override public void setEnabled(boolean enabled) {
+                super.setEnabled(enabled);
+                setAlpha(enabled ? 1f : 0.45f);
+            }
+        };
+        button.setText(title); button.setAllCaps(false);
         button.setTextSize(14); button.setMinHeight(dp(48)); button.setMinimumHeight(dp(48));
         button.setPadding(dp(12), dp(8), dp(12), dp(8));
         button.setTextColor(primary ? BG : TEXT); button.setBackground(background(primary ? ACCENT : BG));

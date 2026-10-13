@@ -119,6 +119,8 @@ public class ResearchDeviceTest extends InstrumentationTestCase {
             assertTrue(activity.findViewById(R.id.run_analysis).getHeight() >= minimum);
             assertTrue(activity.findViewById(R.id.compare_markets).getHeight() >= minimum);
             assertTrue(activity.findViewById(R.id.bulk_input).getHeight() >= minimum);
+            assertFalse(activity.findViewById(R.id.run_analysis).isEnabled());
+            assertTrue(activity.findViewById(R.id.run_analysis).getAlpha() < 1f);
         });
     }
 }
