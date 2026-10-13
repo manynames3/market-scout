@@ -3,7 +3,6 @@ package com.supremeaiventures.marketscout;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
 import java.util.List;
 
 final class SearchItem {
@@ -25,6 +24,11 @@ final class SearchItem {
 
     String identity() {
         return type + "|" + key;
+    }
+
+    JSONObject toJson() throws org.json.JSONException {
+        return new JSONObject().put("label", label).put("value", value).put("type", type)
+                .put("key", key).put("state", state).put("shard", shard);
     }
 }
 
@@ -78,6 +82,7 @@ final class ManifestSnapshot {
 }
 
 final class MarketResult {
+    final SearchItem item;
     final String city;
     final String type;
     final String status;
@@ -98,8 +103,10 @@ final class MarketResult {
     final Integer newListings;
     final String redfinUrl;
     String householdIncome;
+    boolean cached;
 
     private MarketResult(
+            SearchItem item,
             String city,
             String type,
             String status,
@@ -120,6 +127,7 @@ final class MarketResult {
             Integer newListings,
             String redfinUrl
     ) {
+        this.item = item;
         this.city = city;
         this.type = type;
         this.status = status;
@@ -143,9 +151,10 @@ final class MarketResult {
 
     static MarketResult fromJson(JSONObject object, SearchItem item) {
         return new MarketResult(
+                item,
                 item.label,
                 item.type,
-                "OK",
+                object.optString("status", "OK"),
                 nullableString(object, "period"),
                 nullableString(object, "median_sale"),
                 nullableDouble(object, "months_supply"),
@@ -167,6 +176,7 @@ final class MarketResult {
 
     static MarketResult missing(SearchItem item, String status) {
         return new MarketResult(
+                item,
                 item.label,
                 item.type,
                 status,
@@ -193,6 +203,29 @@ final class MarketResult {
         if (supplyLabel != null && !supplyLabel.isEmpty()) return supplyLabel;
         if (parLabel != null && !parLabel.isEmpty()) return parLabel;
         return type;
+    }
+
+    String identity() {
+        return item.identity();
+    }
+
+    JSONObject toJson() throws org.json.JSONException {
+        return new JSONObject().put("item", item.toJson()).put("status", status)
+                .put("period", period).put("median_sale", medianSale)
+                .put("months_supply", monthsSupply).put("supply_label", supplyLabel)
+                .put("par_ratio", parRatio).put("par_pending", parPending).put("par_total", parTotal)
+                .put("par_label", parLabel).put("median_dom", medianDom).put("sale_to_list", saleToList)
+                .put("sold_above_list", soldAboveList).put("price_drops", priceDrops)
+                .put("off_market_2wk", offMarketTwoWeeks).put("homes_sold", homesSold)
+                .put("new_listings", newListings).put("redfin_url", redfinUrl)
+                .put("household_income", householdIncome).put("cached", cached);
+    }
+
+    static MarketResult fromSavedJson(JSONObject object) {
+        MarketResult result = fromJson(object, new SearchItem(object.optJSONObject("item")));
+        result.householdIncome = nullableString(object, "household_income");
+        result.cached = object.optBoolean("cached", false);
+        return result;
     }
 
     private static String nullableString(JSONObject object, String key) {

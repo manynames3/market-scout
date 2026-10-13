@@ -27,7 +27,10 @@ final class MarketSearchIndex {
     static MarketSearchIndex fromJson(JSONArray array) {
         List<SearchItem> items = new ArrayList<>();
         for (int i = 0; i < array.length(); i++) {
-            items.add(new SearchItem(array.optJSONObject(i)));
+            org.json.JSONObject raw = array.optJSONObject(i);
+            if (raw == null) continue;
+            SearchItem item = new SearchItem(raw);
+            if (!item.label.isEmpty() && !item.key.isEmpty()) items.add(item);
         }
         return new MarketSearchIndex(items);
     }

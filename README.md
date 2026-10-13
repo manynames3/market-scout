@@ -11,6 +11,17 @@ cost.
 
 **[Live demo](https://market-scout-anl.pages.dev/)** · **[Android client docs](docs/android.md)**
 
+## Engineering Highlights
+
+- One Python parsing layer feeds the local Flask runtime and compact static web artifacts.
+- Web and native Android clients share the public JSON contract and load market shards on demand.
+- Android research persists locally; cached snapshots provide offline access without a paid backend.
+- Frozen scan inputs and cancelable requests prevent stale callbacks from overwriting new research.
+- Android CI runs fixture tests, lint, and emulator checks and uploads installable APKs and reports.
+
+See the [architecture overview and container diagram](docs/architecture.md) and
+[architecture decisions](docs/adrs/README.md) for the implementation boundaries and tradeoffs.
+
 ## What It Does
 
 Market Scout pulls market-level housing data from Redfin's public market tracker datasets
@@ -87,7 +98,7 @@ listing and inventory review.
 
 ## Project Modes
 
-This repository currently supports two practical modes:
+This repository currently supports three practical modes:
 
 ### 1. Local Flask app
 
@@ -112,6 +123,16 @@ and Java rather than embedding the website, but reads the same static Redfin art
 Cloudflare Pages. That keeps the web and mobile clients independently deployable while
 preserving one data contract and the same low-cost hosting model. The app has no API keys,
 backend service, or additional production dependency.
+
+- Saved research survives rotation and app restarts, including drafts, results, sorting, and filters.
+- Named lists, favorites, and notes keep promising markets ready for follow-up.
+- Compact result cards expand into detailed metrics; compare two or three markets side by side.
+- Canceling or switching lists cancels the scan and rejects obsolete callbacks.
+- Downloaded data is cached on disk for offline use, with its snapshot and reporting period visible.
+- CI runs unit tests, lint, and emulator tests and provides a downloadable debug APK.
+
+Signed APK and App Bundle builds are configured for owner-provided signing keys. See the
+[Android release guide](docs/android.md#release-boundary) for the credential and build setup.
 
 Build or install a debug APK with:
 
@@ -333,6 +354,9 @@ For setup details, see
 
 ## Additional Docs
 
+- [docs/architecture.md](docs/architecture.md)
+- [docs/adrs/README.md](docs/adrs/README.md)
+- [docs/android.md](docs/android.md)
 - [docs/web-migration-plan.md](docs/web-migration-plan.md)
 - [docs/cloudflare-pages-setup.md](docs/cloudflare-pages-setup.md)
 - [docs/adr/0001-web-hosting-and-cost-strategy.md](docs/adr/0001-web-hosting-and-cost-strategy.md)
